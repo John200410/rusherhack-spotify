@@ -1,36 +1,48 @@
 package me.john200410.spotify.ui;
 
+import com.mojang.blaze3d.platform.NativeImage;
+import net.minecraft.client.renderer.texture.DynamicTexture;
+import net.minecraft.resources.ResourceLocation;
 import org.rusherhack.client.api.feature.hud.ResizeableHudElement;
+import org.rusherhack.client.api.render.IRenderer2D;
 import org.rusherhack.client.api.render.RenderContext;
 import org.rusherhack.client.api.render.graphic.TextureGraphic;
+
+import java.awt.*;
 
 /**
  * @author John200410
  */
 public class SpotifyHudElement extends ResizeableHudElement {
 	
-	private TextureGraphic graphic = null;
+	private final ResourceLocation trackThumnailResourceLocation;
+	private final DynamicTexture trackThumbnailTexture;
 	
 	public SpotifyHudElement() {
 		super("Spotify");
 		
-		//try loading graphic
-		/*
-		try {
-			this.graphic = new TextureGraphic("exampleplugin/graphics/rh_head.png", 235, 234);
-		} catch (Throwable t) {
-			t.printStackTrace();
-		}
-		 */
+		this.trackThumbnailTexture = new DynamicTexture(300, 300, false);
+		this.trackThumnailResourceLocation = mc.getTextureManager().register("rusherhack-spotify-track-thumbnail/", this.trackThumbnailTexture);
 	}
 	
 	@Override
 	public void renderContent(RenderContext context, int mouseX, int mouseY) {
-		//positions are relative to the top left corner of the hud element, so start drawing stuff from 0,0
+		final IRenderer2D renderer = this.getRenderer();
 		
-		if (this.graphic != null) {
-			this.getRenderer().drawGraphicRectangle(this.graphic, 0, 0, this.getWidth(), this.getHeight());
-		}
+		//background
+		renderer._drawRoundedRectangle(0, 0, this.getWidth(), this.getHeight(), 5, true, false, 0, this.getFillColor(), 0);
+		
+	}
+	
+	@Override
+	public void postRender(RenderContext context, int mouseX, int mouseY) {
+		//draw track thumbnail
+		context.graphics().blit(this.trackThumnailResourceLocation, 5, 5, 0, 0, 70, 70, 300, 300);
+	}
+	
+	@Override
+	public boolean mouseClicked(double mouseX, double mouseY, int button) {
+		return super.mouseClicked(mouseX, mouseY, button);
 	}
 	
 	@Override
@@ -40,6 +52,12 @@ public class SpotifyHudElement extends ResizeableHudElement {
 	
 	@Override
 	public double getHeight() {
-		return 200;
+		return 75;
 	}
+	
+	private int getFillColor() {
+		//TODO: return color based on song
+		return Color.BLACK.getRGB();
+	}
+	
 }
