@@ -5,40 +5,50 @@ package me.john200410.spotify;
  */
 public class Status {
 	
-	Data data;
-	Meta meta;
+	public Data data;
+	public Meta meta;
 	
-	static class Data {
-		boolean shuffling;
-		Progress progress;
-		Song song;
-		boolean is_playing;
+	public static class Data {
+		public boolean shuffling;
+		public Progress progress;
+		public Song song;
+		public boolean is_playing;
 		
-		static class Progress {
-			int current;
-			int total;
-			String expected_to_end_at;
+		public static class Progress {
+			public int current;
+			public int total;
+			public String expected_to_end_at;
 		}
 		
-		static class Song {
-			String name;
-			String album;
-			String release_date;
-			boolean explicit;
-			Thumbnail[] thumbnails;
+		public static class Song {
+			public String name;
+			public String album;
+			public String release_date;
+			public boolean explicit;
+			public Thumbnail[] thumbnails;
 			
-			static class Thumbnail {
-				String url;
-				int height;
-				int width;
+			public static class Thumbnail {
+				public String url;
+				public int height;
+				public int width;
+			}
+			
+			@Override
+			public int hashCode() {
+				return this.name.hashCode() + this.album.hashCode() + this.release_date.hashCode() + (this.explicit ? 1 : 0);
+			}
+			
+			@Override
+			public boolean equals(Object obj) {
+				return obj instanceof Song && this.hashCode() == obj.hashCode();
 			}
 		}
 		
 	}
 	
-	static class Meta {
-		boolean refreshed;
-		String newToken;
+	public static class Meta {
+		public boolean refreshed;
+		public String newToken;
 	}
 	
 }
