@@ -1,10 +1,11 @@
 {
-  "Plugin-Class": "org.example.ExamplePlugin",
-  "Name": "Example Plugin",
+  "Plugin-Class": "me.john200410.spotify.SpotifyPlugin",
+  "Name": "Spotify",
   "Version": "${plugin_version}",
-  "Description": "Example rusherhack plugin",
+  "Description": "Spotify integration for rusherhack",
   "Authors": [
-    "John200410"
+    "John200410",
+    "DarkerInk"
   ],
   "Minecraft-Versions": [
     "1.20.1"
