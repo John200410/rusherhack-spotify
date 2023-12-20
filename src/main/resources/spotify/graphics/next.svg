@@ -3,8 +3,8 @@
 <svg version="1.1" id="b" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px"
 	 width="24px" height="24px" viewBox="0 0 24 24" enable-background="new 0 0 24 24" xml:space="preserve">
 <g id="c">
-	<path fill-rule="evenodd" clip-rule="evenodd" fill="#FFFFFF" d="M4.66,21c-0.41,0-0.75-0.34-0.75-0.75V3.75
-		C3.91,3.34,4.25,3,4.66,3h1.6c0.41,0,0.75,0.34,0.75,0.75v6.97l12.52-7.38c0.25-0.15,0.56,0.03,0.56,0.32v16.69
-		c0,0.29-0.32,0.47-0.56,0.33L7.01,13.44v6.81c0,0.41-0.34,0.75-0.75,0.75H4.66z"/>
+	<path fill-rule="evenodd" clip-rule="evenodd" fill="#FFFFFF" d="M19.34,3c0.41,0,0.75,0.34,0.75,0.75l0,16.5
+		c0,0.41-0.34,0.75-0.75,0.75h-1.6c-0.41,0-0.75-0.34-0.75-0.75l0-6.97L4.47,20.66c-0.25,0.15-0.56-0.03-0.56-0.32l0-16.69
+		c0-0.29,0.32-0.47,0.56-0.33l12.52,7.24l0-6.81c0-0.41,0.34-0.75,0.75-0.75L19.34,3z"/>
 </g>
 </svg>

@@ -2,7 +2,6 @@ package me.john200410.spotify;
 
 import com.sun.net.httpserver.HttpServer;
 import me.john200410.spotify.http.SpotifyAPI;
-import me.john200410.spotify.http.Status;
 import me.john200410.spotify.ui.SpotifyHudElement;
 import org.apache.commons.io.IOUtils;
 import org.rusherhack.client.api.RusherHackAPI;
@@ -30,6 +29,9 @@ public class SpotifyPlugin extends Plugin {
 		try {
 			this.httpServer = this.setupServer();
 			this.httpServer.start();
+			
+			//dummy
+			//this.api = new SpotifyAPI("null");
 			
 			//hud element
 			RusherHackAPI.getHudManager().registerFeature(new SpotifyHudElement(this));
