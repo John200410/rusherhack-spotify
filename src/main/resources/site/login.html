@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<title>Spotify Stuff :3</title>
+	</head>
+	<body>
+		<script>
+			const domain="https://spotfy.darkerink.workers.dev",fetchLoginLink=async()=>{let t=await fetch("https://spotfy.darkerink.workers.dev/s/login"),e=await t.json();return e},setButton=async()=>{let t=document.getElementById("loginbtn"),e=await fetchLoginLink();t.disabled=!1,t.addEventListener("click",()=>{window.location.href=e.redirectURL})};setTimeout(setButton,250);
+		</script>
+		<style>
+			body {
+				background-color: black;
+			}
+
+			.login-button {
+				background-color: purple;
+				color: white;
+				border: none;
+				padding: 10px 18px;
+				text-align: center;
+				text-decoration: none;
+				font-size: 16px;
+				cursor: pointer;
+				border-radius: 10px;
+				width: 100px;
+				margin: 4px auto;
+				display: block;
+			}
+
+			.login-button:hover,
+			.login-button:active {
+				background-color: #7d00a3;
+			}
+
+			.login-button:active {
+				transform: translateY(4px);
+			}
+
+			.login-button:focus {
+				outline: none;
+			}
+
+			.login-button:disabled {
+				background-color: #7d00a3;
+				opacity: 0.5;
+				cursor: not-allowed;
+			}
+
+			.login-header {
+				color: white;
+				font-size: 30px;
+				text-align: center;
+			}
+
+			.login-center {
+				position: absolute;
+				top: 50%;
+				left: 50%;
+				transform: translate(-50%, -50%);
+			}
+		</style>
+		<div class="login-center">
+			<div class="login-header">Login with Spotify</div>
+			<br />
+			<br />
+			<button class="login-button" id="loginbtn" disabled>Login</button>
+		</div>
+	</body>
+</html>

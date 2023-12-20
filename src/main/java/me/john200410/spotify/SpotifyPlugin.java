@@ -26,6 +26,8 @@ public class SpotifyPlugin extends Plugin {
 	 */
 	public static final HttpClient HTTP_CLIENT = HttpClient.newHttpClient();
 	public static HttpServer HTTP_SERVER;
+
+	public static final SpotifyRequester REQUESTER = new SpotifyRequester();
 	
 	static {
 		try {
@@ -33,14 +35,25 @@ public class SpotifyPlugin extends Plugin {
 			HTTP_SERVER.createContext("/", (req) -> {
 				final URI uri = req.getRequestURI();
 				
-				//TODO: remove
-				ChatUtils.print("Got request to " + uri.toString());
-				
-				byte[] response;
-				
-				try (InputStream is = Request.class.getResourceAsStream("/site/login.html")) {
-					Objects.requireNonNull(is, "Couldn't find login.html");
-					response = IOUtils.toByteArray(is);
+				byte[] response = new byte[0];
+
+				if (uri.getPath().equals("/callback")) {
+					final String code = uri.getQuery().split("=")[1];
+
+					REQUESTER.setToken(code);
+
+
+
+					try (InputStream is = SpotifyPlugin.class.getResourceAsStream("/site/success.html")) {
+						Objects.requireNonNull(is, "Couldn't find login.html");
+						response = IOUtils.toByteArray(is);
+					}
+				} else if (uri.getPath().equals("/")) {
+
+					try (InputStream is = SpotifyPlugin.class.getResourceAsStream("/site/login.html")) {
+						Objects.requireNonNull(is, "Couldn't find login.html");
+						response = IOUtils.toByteArray(is);
+					}
 				}
 				
 				req.getResponseHeaders().add("Content-Type", "text/html");

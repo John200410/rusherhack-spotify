@@ -13,6 +13,8 @@ public class Status {
 		public Progress progress;
 		public Song song;
 		public boolean is_playing;
+
+		public boolean success;
 		
 		public static class Progress {
 			public int current;
