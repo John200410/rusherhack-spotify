@@ -1,15 +1,14 @@
 package me.john200410.spotify;
 
-import com.mojang.realmsclient.client.Request;
 import com.sun.net.httpserver.HttpServer;
+import me.john200410.spotify.http.SpotifyAPI;
+import me.john200410.spotify.http.Status;
 import me.john200410.spotify.ui.SpotifyHudElement;
 import org.apache.commons.io.IOUtils;
 import org.rusherhack.client.api.RusherHackAPI;
 import org.rusherhack.client.api.plugin.Plugin;
-import org.rusherhack.client.api.utils.ChatUtils;
-import org.rusherhack.core.logging.ILogger;
-import org.rusherhack.core.notification.NotificationType;
 
+import java.io.IOException;
 import java.io.InputStream;
 import java.net.InetSocketAddress;
 import java.net.URI;
@@ -21,92 +20,31 @@ import java.util.Objects;
  */
 public class SpotifyPlugin extends Plugin {
 	
-	/**
-	 * Constants
-	 */
 	public static final HttpClient HTTP_CLIENT = HttpClient.newHttpClient();
-	public static HttpServer HTTP_SERVER;
-
-	public static final SpotifyRequester REQUESTER = new SpotifyRequester();
 	
-	static {
-		try {
-			HTTP_SERVER = HttpServer.create(new InetSocketAddress("0.0.0.0", 4000), 0);
-			HTTP_SERVER.createContext("/", (req) -> {
-				final URI uri = req.getRequestURI();
-				
-				byte[] response = new byte[0];
-
-				if (uri.getPath().equals("/callback")) {
-					final String code = uri.getQuery().split("=")[1];
-
-					REQUESTER.setToken(code);
-
-
-
-					try (InputStream is = SpotifyPlugin.class.getResourceAsStream("/site/success.html")) {
-						Objects.requireNonNull(is, "Couldn't find login.html");
-						response = IOUtils.toByteArray(is);
-					}
-				} else if (uri.getPath().equals("/")) {
-
-					try (InputStream is = SpotifyPlugin.class.getResourceAsStream("/site/login.html")) {
-						Objects.requireNonNull(is, "Couldn't find login.html");
-						response = IOUtils.toByteArray(is);
-					}
-				}
-				
-				req.getResponseHeaders().add("Content-Type", "text/html");
-				req.sendResponseHeaders(200, response.length);
-				req.getResponseBody().write(response);
-				req.getResponseBody().close();
-			});
-		} catch (Exception e) {
-			RusherHackAPI.getNotificationManager().send(NotificationType.ERROR, "Failed to setup server.");
-			e.printStackTrace();
-		}
-	}
-	
-	private Status currentStatus;
+	private HttpServer httpServer;
+	private SpotifyAPI api;
 	
 	@Override
 	public void onLoad() {
-		if(HTTP_SERVER == null) {
-			RusherHackAPI.getNotificationManager().send(NotificationType.ERROR, "Failed to setup server.");
-			return;
+		try {
+			this.httpServer = this.setupServer();
+			this.httpServer.start();
+			
+			//hud element
+			RusherHackAPI.getHudManager().registerFeature(new SpotifyHudElement(this));
+		} catch(IOException e) {
+			//throw exception so plugin doesnt load
+			throw new RuntimeException(e);
 		}
-		
-		HTTP_SERVER.start();
-		
-		//dummy status for now
-		this.currentStatus = new Status();
-		this.currentStatus.data = new Status.Data();
-		final Status.Data.Song song = new Status.Data.Song();
-		song.name = "Dummy Song";
-		song.album = "Dummy Album";
-		song.release_date = "2021-09-17";
-		song.explicit = false;
-		
-		final Status.Data.Song.Thumbnail x300 = new Status.Data.Song.Thumbnail();
-		x300.url = "https://i.scdn.co/image/ab67616d00001e02be82673b5f79d9658ec0a9fd";
-		x300.width = x300.height = 300;
-		
-		song.thumbnails = new Status.Data.Song.Thumbnail[]{
-				x300
-		};
-		
-		this.currentStatus.data.song = song;
-		
-		//hud element
-		RusherHackAPI.getHudManager().registerFeature(new SpotifyHudElement(this));
 		
 		//TODO: maybe window in the future?
 	}
 	
 	@Override
 	public void onUnload() {
-		if(HTTP_SERVER != null) {
-			HTTP_SERVER.stop(0);
+		if(this.httpServer != null) {
+			this.httpServer.stop(0);
 		}
 	}
 	
@@ -130,12 +68,40 @@ public class SpotifyPlugin extends Plugin {
 		return new String[]{"John200410", "DarkerInk"};
 	}
 	
-	public Status getStatus() {
-		return this.currentStatus;
+	public SpotifyAPI getAPI() {
+		return this.api;
 	}
 	
-	public Status.Data.Song getSong() {
-		return this.currentStatus.data.song;
+	private HttpServer setupServer() throws IOException {
+		final HttpServer server = HttpServer.create(new InetSocketAddress("0.0.0.0", 4000), 0);
+		server.createContext("/", (req) -> {
+			final URI uri = req.getRequestURI();
+			
+			byte[] response = new byte[0];
+			
+			if(uri.getPath().equals("/callback")) {
+				final String code = uri.getQuery().split("=")[1];
+				this.api = new SpotifyAPI(code);
+				
+				try(InputStream is = SpotifyPlugin.class.getResourceAsStream("/site/success.html")) {
+					Objects.requireNonNull(is, "Couldn't find login.html");
+					response = IOUtils.toByteArray(is);
+				}
+			} else if(uri.getPath().equals("/")) {
+				
+				try(InputStream is = SpotifyPlugin.class.getResourceAsStream("/site/login.html")) {
+					Objects.requireNonNull(is, "Couldn't find login.html");
+					response = IOUtils.toByteArray(is);
+				}
+			}
+			
+			req.getResponseHeaders().add("Content-Type", "text/html");
+			req.sendResponseHeaders(200, response.length);
+			req.getResponseBody().write(response);
+			req.getResponseBody().close();
+		});
+		
+		return server;
 	}
 	
 }
