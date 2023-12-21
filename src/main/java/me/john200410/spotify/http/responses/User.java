@@ -1,4 +1,4 @@
-package me.john200410.spotify.http;
+package me.john200410.spotify.http.responses;
 
 /**
  * @author John200410 12/19/2023

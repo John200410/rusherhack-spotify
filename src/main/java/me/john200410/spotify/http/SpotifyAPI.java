@@ -2,6 +2,7 @@ package me.john200410.spotify.http;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonSyntaxException;
+import me.john200410.spotify.http.responses.User;
 import me.john200410.spotify.http.responses.CodeGrant;
 import me.john200410.spotify.http.responses.PlaybackState;
 import me.john200410.spotify.http.responses.Response;
@@ -40,21 +41,35 @@ public class SpotifyAPI {
 	private String refreshToken;
 	public Integer expiresIn;
 
-	private final String appID;
-	private final String appSecret;
-	private final String redirectURI;
+	private String appID;
+	private String appSecret;
+	private String redirectURI;
 
 	private Boolean premium;
 
+	public Boolean isPlaying;
 
-	public SpotifyAPI(
-			String appID,
-			String appSecret,
-			String redirectURI
-	) {
+	private String deviceID;
+
+	public SpotifyAPI() {
+	}
+
+	public SpotifyAPI setAppID(String appID) {
 		this.appID = appID;
+
+		return this;
+	}
+
+	public SpotifyAPI setAppSecret(String appSecret) {
 		this.appSecret = appSecret;
+
+		return this;
+	}
+
+	public SpotifyAPI setRedirectURI(String redirectURI) {
 		this.redirectURI = redirectURI;
+
+		return this;
 	}
 	
 	public PlaybackState getCurrentStatus() {
@@ -186,23 +201,201 @@ public class SpotifyAPI {
 	public Future<?> submit(Runnable runnable) {
 		return Util.backgroundExecutor().submit(runnable);
 	}
-	
+
+	private String getUrl(String url, Boolean Params) {
+		return this.deviceID == null ? url : url + (Params ? "&device_id=" + this.deviceID : "?device_id=" + this.deviceID);
+	}
+
+	// only method that doesn't require premium
 	public PlaybackState getStatus() throws IOException, InterruptedException, JsonSyntaxException {
 		this.updateAccessToken();
 
 		Response request = this.makeRequest(
 				"GET",
-				"/v1/me/player"
+				this.getUrl("/v1/me/player", false)
 		);
 
 		if (request.statusCode != 200) {
 			System.out.println("STATUS CODE: " + request.statusCode);
+
+			this.isPlaying = false;
 
 			return null;
 		}
 
 		PlaybackState status = GSON.fromJson(request.body, PlaybackState.class);
 
+		this.deviceID = status.device.id;
+
 		return status;
+	}
+
+	public Boolean pause() throws IOException, InterruptedException {
+		if (!this.checkPremium()) {
+			return false;
+		}
+
+		this.updateAccessToken();
+
+		Response request = this.makeRequest(
+				"PUT",
+				this.getUrl("/v1/me/player/pause", false)
+		);
+
+		if (request.statusCode != 204) {
+			System.out.println("STATUS CODE: " + request.statusCode);
+
+			this.isPlaying = false;
+
+			return false;
+		}
+
+		return true;
+	}
+
+	public Boolean play() throws IOException, InterruptedException {
+		if (!this.checkPremium()) {
+			return false;
+		}
+
+		this.updateAccessToken();
+
+		Response request = this.makeRequest(
+				"PUT",
+				this.getUrl("/v1/me/player/play", false)
+		);
+
+		if (request.statusCode != 204) {
+			System.out.println("STATUS CODE: " + request.statusCode);
+
+			this.isPlaying = false;
+
+			return false;
+		}
+
+		return true;
+	}
+
+	public Boolean next() throws IOException, InterruptedException {
+		if (!this.checkPremium()) {
+			return false;
+		}
+
+		this.updateAccessToken();
+
+		Response request = this.makeRequest(
+				"POST",
+				this.getUrl("/v1/me/player/next", false)
+		);
+
+		if (request.statusCode != 204) {
+			System.out.println("STATUS CODE: " + request.statusCode);
+
+			this.isPlaying = false;
+
+			return false;
+		}
+
+		return true;
+	}
+
+	public Boolean previous() throws IOException, InterruptedException {
+		if (!this.checkPremium()) {
+			return false;
+		}
+
+		this.updateAccessToken();
+
+		Response request = this.makeRequest(
+				"POST",
+				this.getUrl("/v1/me/player/previous", false)
+		);
+
+		if (request.statusCode != 204) {
+			System.out.println("STATUS CODE: " + request.statusCode);
+
+			this.isPlaying = false;
+
+			return false;
+		}
+
+		return true;
+	}
+
+	public Boolean setShuffle(Boolean shuffle) throws IOException, InterruptedException {
+		if (!this.checkPremium()) {
+			return false;
+		}
+
+		this.updateAccessToken();
+
+		Response request = this.makeRequest(
+				"PUT",
+				this.getUrl("/v1/me/player/shuffle?state=" + shuffle, true)
+		);
+
+		if (request.statusCode != 204) {
+			System.out.println("STATUS CODE: " + request.statusCode);
+
+			this.isPlaying = false;
+
+			return false;
+		}
+
+		return true;
+	}
+
+	// repeat can be one of: track, context, or off.
+	// track will repeat the current playlist.
+	// context will repeat the current song.
+	// off will turn repeat off.
+	public Boolean setRepeat(String repeat) throws IOException, InterruptedException {
+		if (!this.checkPremium()) {
+			return false;
+		}
+
+		this.updateAccessToken();
+
+		Response request = this.makeRequest(
+				"PUT",
+				this.getUrl("/v1/me/player/repeat?state=" + repeat, true)
+		);
+
+		if (request.statusCode != 204) {
+			System.out.println("STATUS CODE: " + request.statusCode);
+
+			this.isPlaying = false;
+
+			return false;
+		}
+
+		return true;
+	}
+
+	public Boolean checkPremium() throws IOException, InterruptedException {
+		if (this.premium != null) {
+			return this.premium;
+		}
+
+		this.updateAccessToken();
+
+		Response request = this.makeRequest(
+				"GET",
+				this.getUrl("/v1/me", false)
+		);
+
+		if (request.statusCode != 200) {
+			System.out.println("STATUS CODE: " + request.statusCode);
+
+			this.isPlaying = false;
+
+			return false;
+		}
+
+		User user = GSON.fromJson(request.body, User.class);
+
+		this.premium = user.product.equals("premium");
+
+		return this.premium;
 	}
 }

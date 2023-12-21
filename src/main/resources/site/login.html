@@ -1,71 +1,203 @@
 <!DOCTYPE html>
 <html lang="en">
-	<head>
-		<meta charset="UTF-8" />
-		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-		<title>Spotify Stuff :3</title>
-	</head>
-	<body>
-		<script>
-			fetchLoginLink=async()=>{let t=await fetch("http://localhost:4000/link"),e=await t.json();return e},setButton=async()=>{let t=document.getElementById("loginbtn"),e=await fetchLoginLink();t.disabled=!1,t.addEventListener("click",()=>{window.location.href=e.url})};setTimeout(setButton,250);
-		</script>
-		<style>
-			body {
-				background-color: black;
-			}
+<head>
+	<meta charset="UTF-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+	<title>Spotify App Setup</title>
+	<style>
+		body {
+			font-family: 'Arial', sans-serif;
+			margin: 0;
+			padding: 0;
+			background-color: #191414;
+			color: #ffffff;
+		}
 
-			.login-button {
-				background-color: purple;
-				color: white;
-				border: none;
-				padding: 10px 18px;
-				text-align: center;
-				text-decoration: none;
-				font-size: 16px;
-				cursor: pointer;
-				border-radius: 10px;
-				width: 100px;
-				margin: 4px auto;
-				display: block;
-			}
+		.container {
+			text-align: center;
+			margin-top: 50px;
+		}
 
-			.login-button:hover,
-			.login-button:active {
-				background-color: #7d00a3;
-			}
+		button {
+			padding: 12px 24px;
+			font-size: 16px;
+			cursor: pointer;
+			background-color: #1db954;
+			color: #ffffff;
+			border: none;
+			border-radius: 25px;
+			margin-top: 10px;
+		}
 
-			.login-button:active {
-				transform: translateY(4px);
-			}
+		button:hover {
+			background-color: #25d366;
+		}
 
-			.login-button:focus {
-				outline: none;
-			}
+		#setupPage,
+		#loginForm {
+			display: none;
+			text-align: center;
+			margin: 20px auto;
+			max-width: 600px;
+		}
 
-			.login-button:disabled {
-				background-color: #7d00a3;
-				opacity: 0.5;
-				cursor: not-allowed;
-			}
+		.hidden {
+			display: none;
+		}
 
-			.login-header {
-				color: white;
-				font-size: 30px;
-				text-align: center;
-			}
+		iframe {
+			width: 100%;
+			height: 315px;
+			border: none;
+			border-radius: 10px;
+			margin-top: 20px;
+		}
 
-			.login-center {
-				position: absolute;
-				top: 50%;
-				left: 50%;
-				transform: translate(-50%, -50%);
-			}
-		</style>
-		<div class="login-center">
-			<div class="login-header">Login with Spotify</div>
-			<br />
-			<br />
-			<button class="login-button" id="loginbtn" disabled>Login</button>
-		</div>
-	</body>
+		form {
+			text-align: center;
+		}
+
+		label {
+			display: block;
+			margin: 10px 0;
+		}
+
+		input {
+			width: 100%;
+			padding: 10px;
+			margin: 5px 0;
+			box-sizing: border-box;
+		}
+
+		.spo {
+			color: #1db954;
+			font-size: 32px;
+		}
+
+		.nonImportant {
+			font-size: 24px;
+		}
+
+		#setupPage p {
+			margin: 10px 0;
+		}
+
+		#setupPage span {
+			color: #ffffff;
+		}
+
+		.forminput {
+			border-radius: 10px;
+			background-color: #4d4545;
+			border: 1px solid #1db954;
+			outline: none;
+			color: white;
+		}
+
+		a:link,
+		a:visited,
+		a:hover,
+		a:active {
+			text-decoration: none;
+			color: hotpink;
+		}
+
+		#loginBtn:disabled {
+			background-color: #4d4545;
+			color: #ffffff;
+			cursor: not-allowed;
+		}
+	</style>
+</head>
+<body>
+<div class="container" id="container">
+	<h1 class="spo">Spotify App Setup</h1>
+	<h1 class="nonImportant">Lets Get Started</h1>
+	<button id="getStartedBtn" onclick="showSetupPage()">Get Started</button>
+</div>
+
+<div id="setupPage" class="hidden">
+	<h1 class="spo">Spotify App Setup</h1>
+
+	<p>
+		Go to <a href="https://developer.spotify.com/dashboard" target="_blank">https://developer.spotify.com/dashboard</a> and create a new
+		app. <br />The app name and description do not matter
+	</p>
+	<br />
+	<p><strong>The Redirect URI MUST be</strong> http://localhost:4000/callback</p>
+	<br />
+	<p>Select "Web API" for the SDKs we'll use.</p>
+
+	<iframe src="https://uh-oh.org/i/y4r9f1rxd2.mp4" allowfullscreen></iframe>
+
+	<button id="createdAppBtn" onclick="showLoginForm()">Created The App!</button>
+</div>
+
+<div id="loginForm" class="hidden">
+	<h1 class="spo">Spotify App Setup</h1>
+
+	<p>Now that you've created the app, you need to get the App ID and App Secret. <br />You can find them on the app's dashboard.</p>
+
+	<iframe src="https://uh-oh.org/i/y4r9f1rxd2.mp4" allowfullscreen></iframe>
+
+	<form onsubmit="redirectToLogin(event)">
+		<label for="appId">App ID:</label>
+		<input class="forminput" type="text" id="appId" name="appId" required />
+
+		<label for="appSecret">App Secret:</label>
+		<input class="forminput" type="text" id="appSecret" name="appSecret" required />
+
+		<button type="submit" id="loginBtn" disabled>Please Enter the fields</button>
+	</form>
+</div>
+
+<script>
+	function showSetupPage() {
+		document.getElementById('container').style.display = 'none';
+		document.getElementById('setupPage').style.display = 'block';
+	}
+
+	function showLoginForm() {
+		document.getElementById('setupPage').style.display = 'none';
+		document.getElementById('loginForm').style.display = 'block';
+	}
+
+	async function redirectToLogin(e) {
+		e.preventDefault();
+
+		const appId = document.getElementById('appId').value;
+		const appSecret = document.getElementById('appSecret').value;
+
+		if (appId && appSecret) {
+			const fetched = await fetch(`http://localhost:4000/setup?appId=${appId}&appSecret=${appSecret}`, {
+				method: 'GET',
+			});
+
+			const txt = await fetched.text();
+
+			const json = JSON.parse(txt);
+
+			location.href = json.url;
+		}
+	}
+
+	document.getElementById('appId').addEventListener('input', () => {
+		if (document.getElementById('appId').value && document.getElementById('appSecret').value) {
+			document.getElementById('loginBtn').innerText = 'Login';
+			document.getElementById('loginBtn').disabled = false;
+		} else {
+			document.getElementById('loginBtn').innerText = 'Please Enter the fields';
+		}
+	});
+
+	document.getElementById('appSecret').addEventListener('input', () => {
+		if (document.getElementById('appId').value && document.getElementById('appSecret').value) {
+			document.getElementById('loginBtn').innerText = 'Login';
+			document.getElementById('loginBtn').disabled = false;
+		} else {
+			document.getElementById('loginBtn').innerText = 'Please Enter the fields';
+		}
+	});
+</script>
+</body>
 </html>
