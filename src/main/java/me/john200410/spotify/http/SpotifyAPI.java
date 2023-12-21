@@ -8,8 +8,6 @@ import me.john200410.spotify.http.responses.PlaybackState;
 import me.john200410.spotify.http.responses.Response;
 import me.john200410.spotify.http.responses.User;
 import net.minecraft.Util;
-import org.apache.http.NameValuePair;
-import org.apache.http.message.BasicNameValuePair;
 import org.rusherhack.client.api.RusherHackAPI;
 import org.rusherhack.client.api.utils.ChatUtils;
 import org.rusherhack.core.notification.NotificationType;
@@ -21,9 +19,7 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Future;
 import java.util.stream.Collectors;
@@ -413,22 +409,26 @@ public class SpotifyAPI {
 	}
 	
 	private boolean authorizationRefreshToken() throws IOException, InterruptedException {
-		List<NameValuePair> urlParameters = new ArrayList<>();
-		urlParameters.add(new BasicNameValuePair("grant_type", "refresh_token"));
-		urlParameters.add(new BasicNameValuePair("refresh_token", this.refreshToken));
-		urlParameters.add(new BasicNameValuePair("client_id", this.appID));
-		urlParameters.add(new BasicNameValuePair("client_secret", this.appSecret));
-		
+		Map<Object, Object> data = new HashMap<>();
+		data.put("grant_type", "refresh_token");
+		data.put("refresh_token", this.refreshToken);
+		data.put("client_id", this.appID);
+		data.put("client_secret", this.appSecret);
+
+		String requestBody = data.entrySet().stream()
+				.map(entry -> entry.getKey().toString() + "=" + entry.getValue().toString())
+				.collect(Collectors.joining("&"));
+
 		final HttpRequest request = HttpRequest.newBuilder()
 											   .uri(URI.create(AUTH_URL + "/api/token"))
 											   .header("Content-Type", "application/x-www-form-urlencoded")
 											   .header("Accept", "application/json")
-											   .POST(HttpRequest.BodyPublishers.ofString(urlParameters.toString()))
+				                               .POST(HttpRequest.BodyPublishers.ofString(requestBody))
 											   .timeout(Duration.ofSeconds(8))
 											   .build();
 		
 		final HttpResponse<String> response = HTTP_CLIENT.send(request, HttpResponse.BodyHandlers.ofString());
-		
+
 		if(response.statusCode() != 200) {
 			ChatUtils.print("debug 8");
 			this.isConnected = false;
