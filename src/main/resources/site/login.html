@@ -7,7 +7,7 @@
 	</head>
 	<body>
 		<script>
-			const domain="https://spotfy.darkerink.workers.dev",fetchLoginLink=async()=>{let t=await fetch("https://spotfy.darkerink.workers.dev/s/login"),e=await t.json();return e},setButton=async()=>{let t=document.getElementById("loginbtn"),e=await fetchLoginLink();t.disabled=!1,t.addEventListener("click",()=>{window.location.href=e.redirectURL})};setTimeout(setButton,250);
+			fetchLoginLink=async()=>{let t=await fetch("http://localhost:4000/link"),e=await t.json();return e},setButton=async()=>{let t=document.getElementById("loginbtn"),e=await fetchLoginLink();t.disabled=!1,t.addEventListener("click",()=>{window.location.href=e.url})};setTimeout(setButton,250);
 		</script>
 		<style>
 			body {

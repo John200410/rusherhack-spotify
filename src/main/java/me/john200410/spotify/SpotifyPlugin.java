@@ -6,6 +6,7 @@ import me.john200410.spotify.ui.SpotifyHudElement;
 import org.apache.commons.io.IOUtils;
 import org.rusherhack.client.api.RusherHackAPI;
 import org.rusherhack.client.api.plugin.Plugin;
+import org.rusherhack.client.api.utils.ChatUtils;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -76,6 +77,12 @@ public class SpotifyPlugin extends Plugin {
 	
 	private HttpServer setupServer() throws IOException {
 		final HttpServer server = HttpServer.create(new InetSocketAddress("0.0.0.0", 4000), 0);
+
+		SpotifyAPI api = new SpotifyAPI(
+				"",
+				"",
+				"http://localhost:4000/callback");
+
 		server.createContext("/", (req) -> {
 			final URI uri = req.getRequestURI();
 			
@@ -83,18 +90,42 @@ public class SpotifyPlugin extends Plugin {
 			
 			if(uri.getPath().equals("/callback")) {
 				final String code = uri.getQuery().split("=")[1];
-				this.api = new SpotifyAPI(code);
-				
+
+				try {
+					var res = api.authorizationCodeGrant(code);
+
+					if (res) {
+						ChatUtils.print("Successfully got access token");
+						ChatUtils.print("Expires In: " + api.expiresIn);
+						this.api = api;
+					} else {
+						ChatUtils.print("Failed to get access token");
+					}
+
+
+				} catch (InterruptedException e) {
+					ChatUtils.print("Failed to get access token");
+				}
+
 				try(InputStream is = SpotifyPlugin.class.getResourceAsStream("/site/success.html")) {
 					Objects.requireNonNull(is, "Couldn't find login.html");
 					response = IOUtils.toByteArray(is);
 				}
+
+				req.getResponseHeaders().add("Content-Type", "text/html");
 			} else if(uri.getPath().equals("/")) {
 				
 				try(InputStream is = SpotifyPlugin.class.getResourceAsStream("/site/login.html")) {
 					Objects.requireNonNull(is, "Couldn't find login.html");
 					response = IOUtils.toByteArray(is);
 				}
+
+				req.getResponseHeaders().add("Content-Type", "text/html");
+			} else if (uri.getPath().equals("/link")) {
+				String test = api.generateOAuthUrl();
+
+				response = ("{\"url\": \"" + test + "\"}").getBytes();
+				req.getResponseHeaders().add("Content-Type", "application/json");
 			}
 			
 			req.getResponseHeaders().add("Content-Type", "text/html");
