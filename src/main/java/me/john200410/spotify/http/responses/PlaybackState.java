@@ -43,7 +43,7 @@ public class PlaybackState {
 		public Artist[] artists;
 		public String[] available_markets;
 		public int disc_number;
-		public int duration_ms;
+		public long duration_ms;
 		public boolean explicit;
 		public ExternalIds external_ids;
 		public ExternalUrls external_urls;

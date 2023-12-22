@@ -129,14 +129,26 @@ public class SpotifyAPI {
 			try {
 				String repeat = this.currentStatus.repeat_state;
 				if(repeat.equals("track")) {
-					repeat = "context";
-				} else if(repeat.equals("context")) {
 					repeat = "off";
-				} else {
+				} else if(repeat.equals("context")) {
 					repeat = "track";
+				} else {
+					repeat = "context";
 				}
 				
 				this.setRepeat(repeat);
+			} catch(NoPremiumException e) {
+				RusherHackAPI.getNotificationManager().send(NotificationType.ERROR, "Spotify Premium is required for this function!");
+			} catch(IOException | InterruptedException e) {
+				e.printStackTrace();
+			}
+		});
+	}
+	
+	public void submitSeek(long ms) {
+		this.submit(() -> {
+			try {
+				this.seek(ms);
 			} catch(NoPremiumException e) {
 				RusherHackAPI.getNotificationManager().send(NotificationType.ERROR, "Spotify Premium is required for this function!");
 			} catch(IOException | InterruptedException e) {
@@ -157,17 +169,21 @@ public class SpotifyAPI {
 		this.statusUpdateTimer.reset();
 		
 		switch(request.statusCode()) {
-			case 200:
-				this.playbackAvailable = true;
-				break;
-			case 204:
+			case 200 -> this.playbackAvailable = true;
+			case 204 -> {
 				this.playbackAvailable = false;
-			case 401:
-				ChatUtils.print("debug 1");
-				this.isConnected = false;
-			default:
 				this.plugin.getLogger().error("UPDATESTATUS STATUS CODE: " + request.statusCode());
 				return null;
+			}
+			case 401 -> {
+				this.isConnected = false;
+				this.plugin.getLogger().error("UPDATESTATUS STATUS CODE: " + request.statusCode());
+				return null;
+			}
+			default -> {
+				this.plugin.getLogger().error("UPDATESTATUS STATUS CODE: " + request.statusCode());
+				return null;
+			}
 		}
 		
 		final PlaybackState status = GSON.fromJson(request.body(), PlaybackState.class);
@@ -189,15 +205,16 @@ public class SpotifyAPI {
 		);
 		
 		switch(request.statusCode()) {
-			case 204:
-				this.playbackAvailable = true;
-				break;
-			case 401:
-				ChatUtils.print("debug 2");
+			case 204 -> this.playbackAvailable = true;
+			case 401 -> {
 				this.isConnected = false;
-			default:
 				this.plugin.getLogger().error("TOGGLEPLAY STATUS CODE: " + request.statusCode());
 				return false;
+			}
+			default -> {
+				this.plugin.getLogger().error("TOGGLEPLAY STATUS CODE: " + request.statusCode());
+				return false;
+			}
 		}
 		
 		//update status
@@ -218,15 +235,16 @@ public class SpotifyAPI {
 		);
 		
 		switch(request.statusCode()) {
-			case 204:
-				this.playbackAvailable = true;
-				break;
-			case 401:
-				ChatUtils.print("debug 3");
+			case 204 -> this.playbackAvailable = true;
+			case 401 -> {
 				this.isConnected = false;
-			default:
 				this.plugin.getLogger().error("NEXT STATUS CODE: " + request.statusCode());
 				return false;
+			}
+			default -> {
+				this.plugin.getLogger().error("NEXT STATUS CODE: " + request.statusCode());
+				return false;
+			}
 		}
 		
 		//update status
@@ -247,15 +265,16 @@ public class SpotifyAPI {
 		);
 		
 		switch(request.statusCode()) {
-			case 204:
-				this.playbackAvailable = true;
-				break;
-			case 401:
-				ChatUtils.print("debug 4");
+			case 204 -> this.playbackAvailable = true;
+			case 401 -> {
 				this.isConnected = false;
-			default:
 				this.plugin.getLogger().error("PREVIOUS STATUS CODE: " + request.statusCode());
 				return false;
+			}
+			default -> {
+				this.plugin.getLogger().error("PREVIOUS STATUS CODE: " + request.statusCode());
+				return false;
+			}
 		}
 		
 		//update status
@@ -276,15 +295,16 @@ public class SpotifyAPI {
 		);
 		
 		switch(request.statusCode()) {
-			case 204:
-				this.playbackAvailable = true;
-				break;
-			case 401:
-				ChatUtils.print("debug 5");
+			case 204 -> this.playbackAvailable = true;
+			case 401 -> {
 				this.isConnected = false;
-			default:
 				this.plugin.getLogger().error("SHUFFLE STATUS CODE: " + request.statusCode());
 				return false;
+			}
+			default -> {
+				this.plugin.getLogger().error("SHUFFLE STATUS CODE: " + request.statusCode());
+				return false;
+			}
 		}
 		
 		//update status
@@ -309,11 +329,46 @@ public class SpotifyAPI {
 		);
 		
 		switch(request.statusCode()) {
+			case 204 -> this.playbackAvailable = true;
+			case 401 -> {
+				this.isConnected = false;
+				this.plugin.getLogger().error("REPEAT STATUS CODE: " + request.statusCode());
+				return false;
+			}
+			default -> {
+				this.plugin.getLogger().error("REPEAT STATUS CODE: " + request.statusCode());
+				return false;
+			}
+		}
+		
+		//update status
+		this.currentStatus = this.getStatus();
+		return true;
+	}
+	
+	private boolean seek(long ms) throws NoPremiumException, IOException, InterruptedException {
+		if(!this.isPremium()) {
+			throw new NoPremiumException();
+		}
+		
+		this.updateAccessToken();
+		
+		final long duration = this.currentStatus.item.duration_ms;
+		if(ms < 0 || ms > duration) {
+			return false;
+		}
+		
+		final Response request = this.makeRequest(
+				"PUT",
+				this.getUrl("/v1/me/player/seek?position_ms=" + ms, true)
+		);
+		
+		switch(request.statusCode()) {
 			case 204:
 				this.playbackAvailable = true;
 				break;
 			case 401:
-				ChatUtils.print("debug 6");
+				ChatUtils.print("debug 7");
 				this.isConnected = false;
 			default:
 				this.plugin.getLogger().error("REPEAT STATUS CODE: " + request.statusCode());
@@ -323,47 +378,6 @@ public class SpotifyAPI {
 		//update status
 		this.currentStatus = this.getStatus();
 		return true;
-	}
-
-	public Boolean seek(int second) {
-		try {
-			this.updateAccessToken();
-
-			int duration = this.currentStatus.item.duration_ms;
-
-			second = second * 1000;
-
-			if(second > duration) {
-				return false;
-			}
-
-			if(second < 0) {
-				return false;
-			}
-
-			final Response request = this.makeRequest(
-					"PUT",
-					this.getUrl("/v1/me/player/seek?position_ms=" + second, true)
-			);
-
-			switch(request.statusCode()) {
-				case 204:
-					this.playbackAvailable = true;
-					break;
-				case 401:
-					ChatUtils.print("debug 7");
-					this.isConnected = false;
-				default:
-					this.plugin.getLogger().error("REPEAT STATUS CODE: " + request.statusCode());
-					return false;
-			}
-
-			//update status
-			this.currentStatus = this.getStatus();
-			return true;
-		} catch(IOException | InterruptedException e) {
-			return false;
-		}
 	}
 	
 	private boolean isPremium() {
@@ -380,14 +394,17 @@ public class SpotifyAPI {
 			);
 			
 			switch(request.statusCode()) {
-				case 200:
-					break;
-				case 401:
-					ChatUtils.print("debug 7");
+				case 200 -> {
+				}
+				case 401 -> {
 					this.isConnected = false;
-				default:
 					this.plugin.getLogger().error("USER STATUS CODE: " + request.statusCode());
 					return false;
+				}
+				default -> {
+					this.plugin.getLogger().error("USER STATUS CODE: " + request.statusCode());
+					return false;
+				}
 			}
 			
 			final User user = GSON.fromJson(request.body(), User.class);
@@ -449,29 +466,30 @@ public class SpotifyAPI {
 		return true;
 	}
 	
-	private boolean authorizationRefreshToken() throws IOException, InterruptedException {
+	public boolean authorizationRefreshToken() throws IOException, InterruptedException {
 		Map<Object, Object> data = new HashMap<>();
 		data.put("grant_type", "refresh_token");
 		data.put("refresh_token", this.refreshToken);
 		data.put("client_id", this.appID);
 		data.put("client_secret", this.appSecret);
-
+		
 		String requestBody = data.entrySet().stream()
-				.map(entry -> entry.getKey().toString() + "=" + entry.getValue().toString())
-				.collect(Collectors.joining("&"));
-
+								 .map(entry -> entry.getKey().toString() + "=" + entry.getValue().toString())
+								 .collect(Collectors.joining("&"));
+		
 		final HttpRequest request = HttpRequest.newBuilder()
 											   .uri(URI.create(AUTH_URL + "/api/token"))
 											   .header("Content-Type", "application/x-www-form-urlencoded")
 											   .header("Accept", "application/json")
-				                               .POST(HttpRequest.BodyPublishers.ofString(requestBody))
+											   .POST(HttpRequest.BodyPublishers.ofString(requestBody))
 											   .timeout(Duration.ofSeconds(8))
 											   .build();
 		
 		final HttpResponse<String> response = HTTP_CLIENT.send(request, HttpResponse.BodyHandlers.ofString());
-
+		
 		if(response.statusCode() != 200) {
 			ChatUtils.print("debug 8");
+			this.plugin.getLogger().info(response.body());
 			this.isConnected = false;
 			return false;
 		}
@@ -503,6 +521,10 @@ public class SpotifyAPI {
 	
 	private void updateAccessToken() throws IOException, InterruptedException {
 		if(this.expiresIn == null) {
+			return;
+		} else if(!this.isConnected && this.refreshTokenTimer.passed(10000L)) {
+			this.authorizationRefreshToken();
+			this.refreshTokenTimer.reset();
 			return;
 		}
 		

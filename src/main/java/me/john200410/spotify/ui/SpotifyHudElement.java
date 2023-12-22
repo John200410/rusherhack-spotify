@@ -20,11 +20,13 @@ import org.rusherhack.client.api.render.font.IFontRenderer;
 import org.rusherhack.client.api.render.graphic.VectorGraphic;
 import org.rusherhack.client.api.ui.ScaledElementBase;
 import org.rusherhack.client.api.utils.ChatUtils;
+import org.rusherhack.client.api.utils.InputUtils;
 import org.rusherhack.core.event.stage.Stage;
 import org.rusherhack.core.event.subscribe.Subscribe;
 import org.rusherhack.core.interfaces.IClickable;
 import org.rusherhack.core.setting.BooleanSetting;
 import org.rusherhack.core.utils.ColorUtils;
+import org.rusherhack.core.utils.MathUtils;
 
 import java.awt.*;
 import java.io.IOException;
@@ -48,6 +50,7 @@ public class SpotifyHudElement extends ResizeableHudElement {
 	/**
 	 * Media Controller
 	 */
+	private final DurationHandler duration;
 	private final MediaControllerHandler mediaController;
 	
 	/**
@@ -64,6 +67,7 @@ public class SpotifyHudElement extends ResizeableHudElement {
 		this.plugin = plugin;
 		
 		this.mediaController = new MediaControllerHandler();
+		this.duration = new DurationHandler();
 		
 		this.trackThumbnailTexture = new DynamicTexture(640, 640, false);
 		this.trackThumbnailTexture.setFilter(true, true);
@@ -159,6 +163,7 @@ public class SpotifyHudElement extends ResizeableHudElement {
 		final IRenderer2D renderer = this.getRenderer();
 		final IFontRenderer fr = this.getFontRenderer();
 		final SpotifyAPI api = this.plugin.getAPI();
+		final PoseStack matrixStack = context.pose();
 		
 		//background
 		renderer._drawRoundedRectangle(0, 0, this.getWidth(), this.getHeight(), 5, true, false, 0, this.getFillColor(), 0);
@@ -194,7 +199,10 @@ public class SpotifyHudElement extends ResizeableHudElement {
 			return;
 		}
 		
-		final double contentWidth = this.getWidth() - 75 - 5;
+		//set correct mouse pos because its set to -1, -1 when not in hud editor
+		mouseX = (int) InputUtils.getMouseX();
+		mouseY = (int) InputUtils.getMouseY();
+		
 		final double leftOffset = 75;
 		
 		/////////////////////////////////////////////////////////////////////
@@ -210,35 +218,27 @@ public class SpotifyHudElement extends ResizeableHudElement {
 		for(int i = 0; i < song.artists.length; i++) {
 			artists[i] = song.artists[i].name;
 		}
-		fr.drawString("by " + Strings.join(artists, ", "), leftOffset, topOffset, Color.LIGHT_GRAY.getRGB());
-		topOffset += fr.getFontHeight() + 1;
 		
-		fr.drawString("on " + song.album.name, leftOffset, topOffset, Color.LIGHT_GRAY.getRGB());
-		topOffset += fr.getFontHeight() + 1;
+		matrixStack.pushPose();
+		matrixStack.translate(leftOffset, topOffset, 0);
+		matrixStack.scale(0.75f, 0.75f, 1);
+		
+		fr.drawString("by " + Strings.join(artists, ", "), 0, 0, Color.LIGHT_GRAY.getRGB());
+		fr.drawString("on " + song.album.name, 0, fr.getFontHeight() + 1, Color.LIGHT_GRAY.getRGB());
+		
+		matrixStack.popPose();
+		
+		topOffset += (fr.getFontHeight() + 1) * 2;
 		
 		/////////////////////////////////////////////////////////////////////
 		
 		/////////////////////////////////////////////////////////////////////
 		//bottom
 		/////////////////////////////////////////////////////////////////////
-		double bottomOffset = this.getHeight() - 5;
-		
-		//progress bar
-		final double progressBarWidth = contentWidth;
-		final double progressBarHeight = 2;
-		final double progress = (double) status.progress_ms / (double) song.duration_ms;
-		
-		renderer._drawRoundedRectangle(leftOffset, bottomOffset - progressBarHeight, progressBarWidth, progressBarHeight, 1, true, false, 0, Color.GRAY.getRGB(), 0);
-		renderer._drawRoundedRectangle(leftOffset, bottomOffset - progressBarHeight, progressBarWidth * progress, progressBarHeight, 1, true, false, 0, Color.WHITE.getRGB(), 0);
-		bottomOffset -= progressBarHeight + 1;
-		
-		//duration
-		final String current = String.format("%d:%02d", status.progress_ms / 60000, status.progress_ms / 1000 % 60);
-		final String length = String.format("%d:%02d", song.duration_ms / 60000, song.duration_ms / 1000 % 60);
-		final double durationHeight = fr.getFontHeight() + 1;
-		fr.drawString(current, leftOffset, bottomOffset - durationHeight, Color.LIGHT_GRAY.getRGB());
-		fr.drawString(length, leftOffset + contentWidth - fr.getStringWidth(length), bottomOffset - durationHeight, Color.LIGHT_GRAY.getRGB());
-		bottomOffset -= durationHeight - 1;
+		final double bottomOffset = this.getHeight() - 5 - this.duration.getHeight();
+		this.duration.setX(leftOffset);
+		this.duration.setY(bottomOffset);
+		this.duration.render(renderer, context, mouseX, mouseY, status);
 		
 		//media controls
 		this.mediaController.setX(leftOffset);
@@ -265,9 +265,6 @@ public class SpotifyHudElement extends ResizeableHudElement {
 	// clicking on the buttons while in chat
 	@Subscribe(stage = Stage.PRE)
 	private void onMouseClick(EventMouse.Key event) {
-		if(event.getAction() != GLFW.GLFW_PRESS) {
-			return;
-		}
 		if(event.getButton() != GLFW.GLFW_MOUSE_BUTTON_LEFT) {
 			return;
 		}
@@ -278,18 +275,20 @@ public class SpotifyHudElement extends ResizeableHudElement {
 		double mouseX = event.getMouseX();
 		double mouseY = event.getMouseY();
 		
-		if(!isHovered(mouseX, mouseY)) {
-			return;
+		if(isHovered(mouseX, mouseY) && event.getAction() == GLFW.GLFW_PRESS) {
+			this.consumedButtonClick = true;
+			mouseClicked(mouseX, mouseY, event.getButton());
+		} else if(event.getAction() == GLFW.GLFW_RELEASE) {
+			mouseReleased(mouseX, mouseY, event.getButton());
 		}
-		
-		this.consumedButtonClick = true;
-		mouseClicked(mouseX, mouseY, event.getButton());
 	}
 	
 	@Override
 	public boolean mouseClicked(double mouseX, double mouseY, int button) {
 		
 		if(this.mediaController.mouseClicked(mouseX, mouseY, button)) {
+			return true;
+		} else if(this.duration.mouseClicked(mouseX, mouseY, button)) {
 			return true;
 		}
 		
@@ -298,6 +297,13 @@ public class SpotifyHudElement extends ResizeableHudElement {
 			return true;
 		}
 		return super.mouseClicked(mouseX, mouseY, button);
+	}
+	
+	@Override
+	public void mouseReleased(double mouseX, double mouseY, int button) {
+		this.duration.mouseReleased(mouseX, mouseY, button);
+		this.mediaController.mouseReleased(mouseX, mouseY, button);
+		super.mouseReleased(mouseX, mouseY, button);
 	}
 	
 	@Override
@@ -323,7 +329,166 @@ public class SpotifyHudElement extends ResizeableHudElement {
 		return this.isConnected() && this.plugin.getAPI().isPlaybackAvailable();
 	}
 	
-	class MediaControllerHandler extends ScaledElementBase implements IClickable {
+	abstract class ElementHandler extends ScaledElementBase implements IClickable {
+		
+		abstract void render(IRenderer2D renderer, RenderContext context, int mouseX, int mouseY, PlaybackState status);
+		
+		@Override
+		public double getWidth() {
+			return SpotifyHudElement.this.getWidth() - 75 - 5;
+		}
+		
+		
+		@Override
+		public double getScale() {
+			return SpotifyHudElement.this.getScale();
+		}
+		
+		@Override
+		public boolean isHovered(double mouseX, double mouseY) {
+			mouseX -= SpotifyHudElement.this.getStartX();
+			mouseY -= SpotifyHudElement.this.getStartY();
+			
+			return mouseX >= this.getX() && mouseX <= this.getX() + this.getScaledWidth() && mouseY >= this.getY() && mouseY <= this.getY() + this.getScaledHeight();
+		}
+	}
+	
+	class DurationHandler extends ElementHandler {
+		
+		private static final double PROGRESS_BAR_HEIGHT = 2;
+		
+		/**
+		 * Variables
+		 */
+		private boolean seeking = false;
+		
+		@Override
+		void render(IRenderer2D renderer, RenderContext context, int mouseX, int mouseY, PlaybackState status) {
+			final IFontRenderer fr = SpotifyHudElement.this.getFontRenderer();
+			final PoseStack matrixStack = context.pose();
+			final PlaybackState.Item song = status.item;
+			final boolean hovered = this.isHovered(mouseX, mouseY);
+			
+			matrixStack.pushPose();
+			matrixStack.translate(this.getX(), this.getY(), 0);
+			
+			final double mouseXOffset = SpotifyHudElement.this.getStartX() + this.getX();
+			final double mouseYOffset = SpotifyHudElement.this.getStartY() + this.getY();
+			mouseX -= (int) mouseXOffset;
+			mouseY -= (int) mouseYOffset;
+			
+			final double width = this.getWidth();
+			double bottomOffset = this.getHeight();
+			final double seekingProgress = MathUtils.clamp((double) mouseX / width, 0, 1);
+			
+			//progress bar
+			final double progressBarHeight = PROGRESS_BAR_HEIGHT;
+			final double progress = (double) status.progress_ms / (double) song.duration_ms;
+			final boolean hoveredOverProgressBar = hovered && mouseY >= bottomOffset - progressBarHeight - 1;
+			renderer._drawRoundedRectangle(0, bottomOffset - progressBarHeight, width, progressBarHeight, 1, true, false, 0, Color.GRAY.getRGB(), 0);
+			renderer._drawRoundedRectangle(0, bottomOffset - progressBarHeight, width * (this.seeking ? seekingProgress : progress), progressBarHeight, 1, true, false, 0, hoveredOverProgressBar || this.seeking ? Color.GREEN.getRGB() : Color.WHITE.getRGB(), 0);
+			bottomOffset -= progressBarHeight + 1;
+			
+			//duration
+			final String current = String.format("%d:%02d", status.progress_ms / 60000, status.progress_ms / 1000 % 60);
+			final String length = String.format("%d:%02d", song.duration_ms / 60000, song.duration_ms / 1000 % 60);
+			final double durationHeight = fr.getFontHeight() + 1;
+			fr.drawString(current, 0, bottomOffset - durationHeight, Color.LIGHT_GRAY.getRGB());
+			fr.drawString(length, width - fr.getStringWidth(length), bottomOffset - durationHeight, Color.LIGHT_GRAY.getRGB());
+			bottomOffset -= durationHeight - 1;
+			
+			//seeking
+			if(this.seeking) {
+				final int seekingProgressMs = (int) (seekingProgress * song.duration_ms);
+				final String seekingTime = String.format("%d:%02d", seekingProgressMs / 60000, seekingProgressMs / 1000 % 60);
+				final double seekingTimeWidth = fr.getStringWidth(seekingTime);
+				final double seekX = MathUtils.clamp(mouseX, 0, width);
+				
+				renderer._drawRoundedRectangle(seekX - seekingTimeWidth / 2f, this.getHeight() - progressBarHeight - 1 - durationHeight, seekingTimeWidth, durationHeight, 1, true, false, 0, ColorUtils.transparency(Color.BLACK.getRGB(), 0.5f), 0);
+				fr.drawString(seekingTime, seekX - seekingTimeWidth / 2f, this.getHeight() - progressBarHeight - 1 - durationHeight, -1);
+				
+				renderer.drawCircle(seekX, this.getHeight() - 1, 3, Color.WHITE.getRGB());
+			}
+			
+			matrixStack.popPose();
+		}
+		
+		@Override
+		public double getHeight() {
+			return PROGRESS_BAR_HEIGHT + 1 + SpotifyHudElement.this.getFontRenderer().getFontHeight() + 1;
+		}
+		
+		@Override
+		public boolean mouseClicked(double mouseX, double mouseY, int button) {
+			if(!this.isHovered(mouseX, mouseY)) {
+				return false;
+			}
+			
+			//localize mouse pos
+			mouseX -= SpotifyHudElement.this.getStartX();
+			mouseY -= SpotifyHudElement.this.getStartY();
+			mouseX -= this.getX();
+			mouseY -= this.getY();
+			
+			final SpotifyAPI api = plugin.getAPI();
+			final boolean hoveredOverProgressBar = mouseY >= this.getHeight() - PROGRESS_BAR_HEIGHT - 1;
+			
+			if(hoveredOverProgressBar) {
+				this.seeking = true;
+				return true;
+			}
+			
+			/*
+			try {
+				api.authorizationRefreshToken();
+				return true;
+			} catch(Exception e) {
+				e.printStackTrace();
+			}
+			 */
+			
+			return false;
+		}
+		
+		@Override
+		public void mouseReleased(double mouseX, double mouseY, int button) {
+			if(this.seeking) {
+				this.seeking = false;
+				
+				final SpotifyAPI api = plugin.getAPI();
+				final PlaybackState status = api.getCurrentStatus();
+				
+				if(status == null) {
+					return;
+				}
+				
+				final PlaybackState.Item song = status.item;
+				
+				if(song == null) {
+					return;
+				}
+				
+				//localize mouse pos
+				mouseX -= SpotifyHudElement.this.getStartX();
+				mouseY -= SpotifyHudElement.this.getStartY();
+				mouseX -= this.getX();
+				mouseY -= this.getY();
+				
+				
+				final double progress = MathUtils.clamp(mouseX / this.getWidth(), 0, 1);;
+				final int progressMs = (int) (progress * song.duration_ms);
+				
+				ChatUtils.print("Seek to " + progressMs);
+				api.submitSeek(progressMs);
+				//api.submitSeek(progressMs);
+			}
+			
+			super.mouseReleased(mouseX, mouseY, button);
+		}
+		
+	}
+	
+	class MediaControllerHandler extends ElementHandler {
 		
 		private static final double CONTROL_SIZE = 16;
 		private static final double PAUSE_PLAY_SIZE = CONTROL_SIZE + 4; //bigger than other controls
@@ -426,11 +591,8 @@ public class SpotifyHudElement extends ResizeableHudElement {
 			mouseX -= this.getX();
 			mouseY -= this.getY();
 			
-			ChatUtils.print("mouseX: " + mouseX + ", mouseY: " + mouseY);
-			
 			//pause/play button
 			if(mouseX >= this.playPauseX && mouseX <= this.playPauseX + PAUSE_PLAY_SIZE && mouseY <= this.getY() + PAUSE_PLAY_SIZE) {
-				ChatUtils.print("play/pause");
 				api.submitTogglePlay();
 				return true;
 			}
@@ -441,46 +603,29 @@ public class SpotifyHudElement extends ResizeableHudElement {
 			
 			//back button
 			if(mouseX >= this.backX && mouseX <= this.backX + CONTROL_SIZE) {
-				ChatUtils.print("back");
 				api.submitPrevious();
 				return true;
 			}
 			
 			//next button
 			if(mouseX >= this.nextX && mouseX <= this.nextX + CONTROL_SIZE && mouseY <= this.getY() + CONTROL_SIZE) {
-				ChatUtils.print("next");
 				api.submitNext();
 				return true;
 			}
 			
 			//shuffle button
 			if(mouseX >= this.shuffleX && mouseX <= this.shuffleX + CONTROL_SIZE && mouseY <= this.getY() + CONTROL_SIZE) {
-				ChatUtils.print("shuffle");
 				api.submitToggleShuffle();
 				return true;
 			}
 			
 			//loop button
 			if(mouseX >= this.loopX && mouseX <= this.loopX + CONTROL_SIZE && mouseY <= this.getY() + CONTROL_SIZE) {
-				ChatUtils.print("loop");
 				api.submitToggleRepeat();
 				return true;
 			}
 			
 			return false;
-		}
-		
-		@Override
-		public boolean isHovered(double mouseX, double mouseY) {
-			mouseX -= SpotifyHudElement.this.getStartX();
-			mouseY -= SpotifyHudElement.this.getStartY();
-			
-			return mouseX >= this.getX() && mouseX <= this.getX() + this.getScaledWidth() && mouseY >= this.getY() && mouseY <= this.getY() + this.getScaledHeight();
-		}
-		
-		@Override
-		public double getWidth() {
-			return SpotifyHudElement.this.getWidth() - 75 - 5;
 		}
 		
 		@Override
@@ -492,10 +637,6 @@ public class SpotifyHudElement extends ResizeableHudElement {
 			this.height = v;
 		}
 		
-		@Override
-		public double getScale() {
-			return SpotifyHudElement.this.getScale();
-		}
 	}
 	
 }
