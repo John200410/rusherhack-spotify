@@ -18,12 +18,14 @@ import org.rusherhack.client.api.render.IRenderer2D;
 import org.rusherhack.client.api.render.RenderContext;
 import org.rusherhack.client.api.render.font.IFontRenderer;
 import org.rusherhack.client.api.render.graphic.VectorGraphic;
+import org.rusherhack.client.api.setting.ColorSetting;
 import org.rusherhack.client.api.ui.ScaledElementBase;
 import org.rusherhack.client.api.utils.InputUtils;
 import org.rusherhack.core.event.stage.Stage;
 import org.rusherhack.core.event.subscribe.Subscribe;
 import org.rusherhack.core.interfaces.IClickable;
 import org.rusherhack.core.setting.BooleanSetting;
+import org.rusherhack.core.setting.NumberSetting;
 import org.rusherhack.core.utils.ColorUtils;
 import org.rusherhack.core.utils.MathUtils;
 import org.rusherhack.core.utils.Timer;
@@ -48,6 +50,9 @@ public class SpotifyHudElement extends ResizeableHudElement {
 	 */
 	private final BooleanSetting authenticateButton = new BooleanSetting("Authenticate", true)
 			.setVisibility(() -> !this.isConnected());
+	private final BooleanSetting background = new BooleanSetting("Background", true);
+	private final ColorSetting backgroundColor = new ColorSetting("Color", new Color(BACKGROUND_COLOR, true));
+	private final NumberSetting<Double> updateDelay = new NumberSetting<>("UpdateDelay", 0.5d, 0.25d, 2d);
 	
 	/**
 	 * Media Controller
@@ -94,7 +99,9 @@ public class SpotifyHudElement extends ResizeableHudElement {
 			}
 		});
 		
-		this.registerSettings(authenticateButton);
+		this.background.addSubSettings(backgroundColor);
+		
+		this.registerSettings(authenticateButton, background, updateDelay);
 		
 		//dont ask
 		//this.setupDummyModuleBecauseImFuckingStupidAndForgotToRegisterHudElementsIntoTheEventBus();
@@ -108,7 +115,7 @@ public class SpotifyHudElement extends ResizeableHudElement {
 		}
 		
 		final SpotifyAPI api = this.plugin.getAPI();
-		api.updateStatus(true);
+		api.updateStatus((long) (this.updateDelay.getValue() * 1000));
 		
 		final PlaybackState status = api.getCurrentStatus();
 		
@@ -178,8 +185,9 @@ public class SpotifyHudElement extends ResizeableHudElement {
 		final PoseStack matrixStack = context.pose();
 		
 		//background
-		renderer._drawRoundedRectangle(0, 0, this.getWidth(), this.getHeight(), 5, true, false, 0, this.getFillColor(), 0);
-		
+		if(this.background.getValue()) {
+			renderer._drawRoundedRectangle(0, 0, this.getWidth(), this.getHeight(), 5, true, false, 0, this.getFillColor(), 0);
+		}
 		//logo
 		renderer.drawGraphicRectangle(this.spotifyLogo, this.getWidth() - 5 - 16, 5, 16, 16);
 		
@@ -318,8 +326,8 @@ public class SpotifyHudElement extends ResizeableHudElement {
 	}
 	
 	private int getFillColor() {
-		//TODO: return color based on song
-		return BACKGROUND_COLOR;
+		//TODO: return color based on song thumbnail
+		return this.backgroundColor.getValueRGB();
 	}
 	
 	private boolean isConnected() {

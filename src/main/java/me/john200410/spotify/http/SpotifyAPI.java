@@ -58,9 +58,9 @@ public class SpotifyAPI {
 		this.plugin = plugin;
 	}
 	
-	public void updateStatus(boolean rateLimit) {
+	public void updateStatus(long rateLimit) {
 		
-		if(rateLimit && !this.statusUpdateTimer.passed(1000)) {
+		if(rateLimit > 0 && !this.statusUpdateTimer.passed(rateLimit)) {
 			return;
 		}
 		
