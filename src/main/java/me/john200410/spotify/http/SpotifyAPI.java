@@ -324,6 +324,47 @@ public class SpotifyAPI {
 		this.currentStatus = this.getStatus();
 		return true;
 	}
+
+	public Boolean seek(int second) {
+		try {
+			this.updateAccessToken();
+
+			int duration = this.currentStatus.item.duration_ms;
+
+			second = second * 1000;
+
+			if(second > duration) {
+				return false;
+			}
+
+			if(second < 0) {
+				return false;
+			}
+
+			final Response request = this.makeRequest(
+					"PUT",
+					this.getUrl("/v1/me/player/seek?position_ms=" + second, true)
+			);
+
+			switch(request.statusCode()) {
+				case 204:
+					this.playbackAvailable = true;
+					break;
+				case 401:
+					ChatUtils.print("debug 7");
+					this.isConnected = false;
+				default:
+					this.plugin.getLogger().error("REPEAT STATUS CODE: " + request.statusCode());
+					return false;
+			}
+
+			//update status
+			this.currentStatus = this.getStatus();
+			return true;
+		} catch(IOException | InterruptedException e) {
+			return false;
+		}
+	}
 	
 	private boolean isPremium() {
 		if(this.premium != null) {
