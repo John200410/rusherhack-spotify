@@ -12,15 +12,18 @@ import net.minecraft.client.gui.screens.ChatScreen;
 import net.minecraft.client.renderer.texture.DynamicTexture;
 import net.minecraft.resources.ResourceLocation;
 import org.lwjgl.glfw.GLFW;
+import org.rusherhack.client.api.bind.key.GLFWKey;
 import org.rusherhack.client.api.events.client.input.EventMouse;
 import org.rusherhack.client.api.feature.hud.ResizeableHudElement;
 import org.rusherhack.client.api.render.IRenderer2D;
 import org.rusherhack.client.api.render.RenderContext;
 import org.rusherhack.client.api.render.font.IFontRenderer;
 import org.rusherhack.client.api.render.graphic.VectorGraphic;
+import org.rusherhack.client.api.setting.BindSetting;
 import org.rusherhack.client.api.setting.ColorSetting;
 import org.rusherhack.client.api.ui.ScaledElementBase;
 import org.rusherhack.client.api.utils.InputUtils;
+import org.rusherhack.core.bind.key.NullKey;
 import org.rusherhack.core.event.stage.Stage;
 import org.rusherhack.core.event.subscribe.Subscribe;
 import org.rusherhack.core.interfaces.IClickable;
@@ -53,6 +56,13 @@ public class SpotifyHudElement extends ResizeableHudElement {
 	private final BooleanSetting background = new BooleanSetting("Background", true);
 	private final ColorSetting backgroundColor = new ColorSetting("Color", new Color(BACKGROUND_COLOR, true));
 	private final NumberSetting<Double> updateDelay = new NumberSetting<>("UpdateDelay", 0.5d, 0.25d, 2d);
+	
+	private final BooleanSetting binds = new BooleanSetting("Binds", false);
+	private final BindSetting playPauseBind = new BindSetting("Play/Pause", NullKey.INSTANCE);
+	private final BindSetting backBind = new BindSetting("Back", NullKey.INSTANCE);
+	private final BindSetting nextBind = new BindSetting("Next", NullKey.INSTANCE);
+	private final BindSetting back5Bind = new BindSetting("Back 5", NullKey.INSTANCE);
+	private final BindSetting next5Bind = new BindSetting("Next 5", NullKey.INSTANCE);
 	
 	/**
 	 * Media Controller
@@ -100,8 +110,9 @@ public class SpotifyHudElement extends ResizeableHudElement {
 		});
 		
 		this.background.addSubSettings(backgroundColor);
+		this.binds.addSubSettings(playPauseBind, backBind, nextBind, back5Bind, next5Bind);
 		
-		this.registerSettings(authenticateButton, background, updateDelay);
+		this.registerSettings(authenticateButton, background, updateDelay, binds);
 		
 		//dont ask
 		//this.setupDummyModuleBecauseImFuckingStupidAndForgotToRegisterHudElementsIntoTheEventBus();
@@ -290,6 +301,31 @@ public class SpotifyHudElement extends ResizeableHudElement {
 			this.consumedButtonClick = false;
 		} else if(event.getAction() == GLFW.GLFW_RELEASE) {
 			mouseReleased(mouseX, mouseY, event.getButton());
+		}
+	}
+	
+	//keybinds
+	@Subscribe(stage = Stage.PRE)
+	private void onKey(EventMouse.Key event) {
+		if(!this.binds.getValue()) {
+			return;
+		}
+		if(event.getAction() != GLFW.GLFW_PRESS) {
+			return;
+		}
+		
+		final SpotifyAPI api = this.plugin.getAPI();
+		
+		if(this.playPauseBind.getValue() instanceof GLFWKey key && key.getKeyCode() == event.getButton()) {
+			api.submitTogglePlay();
+		} else if(this.backBind.getValue() instanceof GLFWKey key && key.getKeyCode() == event.getButton()) {
+			api.submitPrevious();
+		} else if(this.nextBind.getValue() instanceof GLFWKey key && key.getKeyCode() == event.getButton()) {
+			api.submitNext();
+		} else if(this.back5Bind.getValue() instanceof GLFWKey key && key.getKeyCode() == event.getButton()) {
+			api.submitSeek(api.getCurrentStatus().progress_ms - 5000);
+		} else if(this.next5Bind.getValue() instanceof GLFWKey key && key.getKeyCode() == event.getButton()) {
+			api.submitSeek(api.getCurrentStatus().progress_ms + 5000);
 		}
 	}
 	

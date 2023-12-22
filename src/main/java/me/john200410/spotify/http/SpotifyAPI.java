@@ -10,6 +10,7 @@ import me.john200410.spotify.http.responses.User;
 import net.minecraft.Util;
 import org.rusherhack.client.api.RusherHackAPI;
 import org.rusherhack.core.notification.NotificationType;
+import org.rusherhack.core.utils.MathUtils;
 import org.rusherhack.core.utils.Timer;
 
 import java.io.IOException;
@@ -352,9 +353,9 @@ public class SpotifyAPI {
 		this.updateAccessToken();
 		
 		final long duration = this.currentStatus.item.duration_ms;
-		if(ms < 0 || ms > duration) {
-			return false;
-		}
+		
+		//clamp
+		ms = MathUtils.clamp(ms, 0, duration);
 		
 		final Response request = this.makeRequest(
 				"PUT",
