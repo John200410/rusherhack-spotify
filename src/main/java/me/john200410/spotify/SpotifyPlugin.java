@@ -1,17 +1,21 @@
 package me.john200410.spotify;
 
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import com.sun.net.httpserver.HttpServer;
 import me.john200410.spotify.http.SpotifyAPI;
 import me.john200410.spotify.ui.SpotifyHudElement;
 import org.apache.commons.io.IOUtils;
 import org.rusherhack.client.api.RusherHackAPI;
 import org.rusherhack.client.api.plugin.Plugin;
-import org.rusherhack.client.api.utils.ChatUtils;
 
+import java.io.File;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.InetSocketAddress;
 import java.net.URI;
+import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
@@ -21,15 +25,40 @@ import java.util.Objects;
  */
 public class SpotifyPlugin extends Plugin {
 	
+	public static final File CONFIG_FILE = RusherHackAPI.getConfigPath().resolve("spotify.json").toFile();
+	public static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
+	
+	private Config config = new Config();
 	private HttpServer httpServer;
 	private SpotifyAPI api;
 	
 	@Override
 	public void onLoad() {
+		
+		//try load config
+		if(CONFIG_FILE.exists()) {
+			try {
+				this.config = GSON.fromJson(IOUtils.toString(CONFIG_FILE.toURI(), StandardCharsets.UTF_8), Config.class);
+			} catch(IOException e) {
+				this.logger.warn("Failed to load config");
+			}
+		}
+		
 		try {
 			this.httpServer = this.setupServer();
 			this.httpServer.start();
 			this.api = new SpotifyAPI(this);
+			this.api.appID = this.config.appId;
+			this.api.appSecret = this.config.appSecret;
+			this.api.refreshToken = this.config.refresh_token;
+			
+			if(!this.api.appID.isEmpty() && !this.api.appSecret.isEmpty() && !this.api.refreshToken.isEmpty()) {
+				try {
+					this.api.authorizationRefreshToken();
+				} catch(Throwable t) {
+					t.printStackTrace();
+				}
+			}
 			
 			//hud element
 			RusherHackAPI.getHudManager().registerFeature(new SpotifyHudElement(this));
@@ -46,6 +75,8 @@ public class SpotifyPlugin extends Plugin {
 		if(this.httpServer != null) {
 			this.httpServer.stop(0);
 		}
+		
+		this.saveConfig();
 	}
 	
 	@Override
@@ -89,14 +120,15 @@ public class SpotifyPlugin extends Plugin {
 					var res = this.api.authorizationCodeGrant(code);
 					
 					if(res) {
-						ChatUtils.print("Successfully got access token");
+						this.logger.info("Successfully got access token");
 					} else {
-						ChatUtils.print("Failed to get access token");
+						this.logger.error("Failed to get access token");
 					}
 					
 					
 				} catch(InterruptedException e) {
-					ChatUtils.print("Failed to get access token");
+					e.printStackTrace();
+					this.logger.error("Failed to get access token");
 				}
 				
 				try(InputStream is = SpotifyPlugin.class.getResourceAsStream("/site/success.html")) {
@@ -150,4 +182,17 @@ public class SpotifyPlugin extends Plugin {
 		
 		return queryParams;
 	}
+	
+	public Config getConfig() {
+		return this.config;
+	}
+	
+	public void saveConfig() {
+		try(FileWriter writer = new FileWriter(CONFIG_FILE)) {
+			GSON.toJson(this.config, writer);
+		} catch(IOException e) {
+			this.logger.error("Failed to save config");
+		}
+	}
+	
 }

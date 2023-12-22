@@ -76,11 +76,15 @@ public class SpotifyHudElement extends ResizeableHudElement {
 		
 		//dummy setting whos only purpose is to be clicked to open the web browser
 		this.authenticateButton.onChange((b) -> {
-			try {
-				Desktop.getDesktop().browse(new URI("http://localhost:4000/"));
-			} catch(IOException | URISyntaxException e) {
-				this.plugin.getLogger().error(e.getMessage());
-				e.printStackTrace();
+			if(!b) {
+				try {
+					Desktop.getDesktop().browse(new URI("http://localhost:4000/"));
+				} catch(IOException | URISyntaxException e) {
+					this.plugin.getLogger().error(e.getMessage());
+					e.printStackTrace();
+				}
+				
+				this.authenticateButton.setValue(true);
 			}
 		});
 		

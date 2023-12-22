@@ -1,7 +1,7 @@
 package me.john200410.spotify.http;
 
-import com.google.gson.Gson;
 import com.google.gson.JsonSyntaxException;
+import me.john200410.spotify.Config;
 import me.john200410.spotify.SpotifyPlugin;
 import me.john200410.spotify.http.responses.CodeGrant;
 import me.john200410.spotify.http.responses.PlaybackState;
@@ -9,7 +9,6 @@ import me.john200410.spotify.http.responses.Response;
 import me.john200410.spotify.http.responses.User;
 import net.minecraft.Util;
 import org.rusherhack.client.api.RusherHackAPI;
-import org.rusherhack.client.api.utils.ChatUtils;
 import org.rusherhack.core.notification.NotificationType;
 import org.rusherhack.core.utils.Timer;
 
@@ -30,7 +29,6 @@ public class SpotifyAPI {
 	 * Constants
 	 */
 	public static final HttpClient HTTP_CLIENT = HttpClient.newHttpClient();
-	private static final Gson GSON = new Gson();
 	private static final String API_URL = "https://api.spotify.com";
 	private static final String AUTH_URL = "https://accounts.spotify.com";
 	
@@ -45,11 +43,11 @@ public class SpotifyAPI {
 	
 	private final Timer refreshTokenTimer = new Timer();
 	private String accessToken;
-	private String refreshToken;
+	public String refreshToken;
 	private Integer expiresIn;
 	
-	private String appID;
-	private String appSecret;
+	public String appID;
+	public String appSecret;
 	private String redirectURI;
 	
 	private Boolean premium;
@@ -172,7 +170,7 @@ public class SpotifyAPI {
 			case 200 -> this.playbackAvailable = true;
 			case 204 -> {
 				this.playbackAvailable = false;
-				this.plugin.getLogger().error("UPDATESTATUS STATUS CODE: " + request.statusCode());
+				//this.plugin.getLogger().error("UPDATESTATUS STATUS CODE: " + request.statusCode());
 				return null;
 			}
 			case 401 -> {
@@ -186,7 +184,7 @@ public class SpotifyAPI {
 			}
 		}
 		
-		final PlaybackState status = GSON.fromJson(request.body(), PlaybackState.class);
+		final PlaybackState status = SpotifyPlugin.GSON.fromJson(request.body(), PlaybackState.class);
 		this.deviceID = status.device.id;
 		return status;
 	}
@@ -368,7 +366,7 @@ public class SpotifyAPI {
 				this.playbackAvailable = true;
 				break;
 			case 401:
-				ChatUtils.print("debug 7");
+				this.plugin.getLogger().error("Lost connection to Spotify");
 				this.isConnected = false;
 			default:
 				this.plugin.getLogger().error("REPEAT STATUS CODE: " + request.statusCode());
@@ -407,7 +405,7 @@ public class SpotifyAPI {
 				}
 			}
 			
-			final User user = GSON.fromJson(request.body(), User.class);
+			final User user = SpotifyPlugin.GSON.fromJson(request.body(), User.class);
 			this.premium = user.product.equals("premium");
 			return this.premium;
 		} catch(IOException | InterruptedException e) {
@@ -452,7 +450,7 @@ public class SpotifyAPI {
 		
 		final HttpResponse<String> response = HTTP_CLIENT.send(request, HttpResponse.BodyHandlers.ofString());
 		
-		final CodeGrant body = GSON.fromJson(response.body(), CodeGrant.class);
+		final CodeGrant body = SpotifyPlugin.GSON.fromJson(response.body(), CodeGrant.class);
 		
 		if(response.statusCode() != 200) {
 			return false;
@@ -462,6 +460,12 @@ public class SpotifyAPI {
 		this.refreshToken = body.refresh_token;
 		this.setExpiration(body.expires_in);
 		this.isConnected = true;
+		
+		final Config config = this.plugin.getConfig();
+		config.appId = this.appID;
+		config.appSecret = this.appSecret;
+		config.refresh_token = this.refreshToken;
+		this.plugin.saveConfig();
 		
 		return true;
 	}
@@ -488,17 +492,26 @@ public class SpotifyAPI {
 		final HttpResponse<String> response = HTTP_CLIENT.send(request, HttpResponse.BodyHandlers.ofString());
 		
 		if(response.statusCode() != 200) {
+			/*
 			ChatUtils.print("debug 8");
 			this.plugin.getLogger().info(response.body());
+			
+			 */
 			this.isConnected = false;
 			return false;
 		}
 		
-		final CodeGrant body = GSON.fromJson(response.body(), CodeGrant.class);
+		final CodeGrant body = SpotifyPlugin.GSON.fromJson(response.body(), CodeGrant.class);
 		
 		this.accessToken = body.access_token;
 		this.setExpiration(body.expires_in);
 		this.isConnected = true;
+		
+		final Config config = this.plugin.getConfig();
+		config.appId = this.appID;
+		config.appSecret = this.appSecret;
+		config.refresh_token = this.refreshToken;
+		this.plugin.saveConfig();
 		
 		return true;
 	}
