@@ -26,6 +26,7 @@ import org.rusherhack.core.interfaces.IClickable;
 import org.rusherhack.core.setting.BooleanSetting;
 import org.rusherhack.core.utils.ColorUtils;
 import org.rusherhack.core.utils.MathUtils;
+import org.rusherhack.core.utils.Timer;
 
 import java.awt.*;
 import java.io.IOException;
@@ -51,12 +52,14 @@ public class SpotifyHudElement extends ResizeableHudElement {
 	/**
 	 * Media Controller
 	 */
+	private final SongInfoHandler songInfo;
 	private final DurationHandler duration;
 	private final MediaControllerHandler mediaController;
 	
 	/**
 	 * Variables
 	 */
+	private final VectorGraphic spotifyLogo;
 	private final ResourceLocation trackThumbnailResourceLocation;
 	private final DynamicTexture trackThumbnailTexture;
 	private final SpotifyPlugin plugin;
@@ -69,6 +72,9 @@ public class SpotifyHudElement extends ResizeableHudElement {
 		
 		this.mediaController = new MediaControllerHandler();
 		this.duration = new DurationHandler();
+		this.songInfo = new SongInfoHandler();
+		
+		this.spotifyLogo = new VectorGraphic("spotify/graphics/spotify_logo.svg", 32, 32);
 		
 		this.trackThumbnailTexture = new DynamicTexture(640, 640, false);
 		this.trackThumbnailTexture.setFilter(true, true);
@@ -114,10 +120,11 @@ public class SpotifyHudElement extends ResizeableHudElement {
 		//ChatUtils.print(status.data.song.name);
 		
 		if(this.song == null || !this.song.equals(status.item)) {
-			this.song = status.item;
 			
+			this.song = status.item;
+			this.songInfo.updateSong(this.song);
 			//update texture
-			if(this.song.artists.length > 0) {
+			if(this.song.album.images.length > 0) {
 				
 				//highest resolution thumbnail
 				PlaybackState.Item.Album.Image thumbnail = null;
@@ -173,6 +180,9 @@ public class SpotifyHudElement extends ResizeableHudElement {
 		//background
 		renderer._drawRoundedRectangle(0, 0, this.getWidth(), this.getHeight(), 5, true, false, 0, this.getFillColor(), 0);
 		
+		//logo
+		renderer.drawGraphicRectangle(this.spotifyLogo, this.getWidth() - 5 - 16, 5, 16, 16);
+		
 		if(!api.isConnected()) {
 			this.trackThumbnailTexture.setPixels(null);
 			fr.drawString("Not authenticated with spotify!", 5, 10, -1);
@@ -204,42 +214,22 @@ public class SpotifyHudElement extends ResizeableHudElement {
 			return;
 		}
 		
+		final double leftOffset = 75;
+		
 		//set correct mouse pos because its set to -1, -1 when not in hud editor
 		mouseX = (int) InputUtils.getMouseX();
 		mouseY = (int) InputUtils.getMouseY();
-		
-		final double leftOffset = 75;
 		
 		/////////////////////////////////////////////////////////////////////
 		//top
 		/////////////////////////////////////////////////////////////////////
 		double topOffset = 5;
 		
-		//scissorbox cuz im too lazy to make text scroll
-		//TODO: maybe someone else can implement it if theyre reading this
-		renderer.scissorBox(0, 0, this.getWidth(), this.getHeight());
-		
 		//song details
-		fr.drawString(song.name, leftOffset, topOffset, -1);
-		topOffset += fr.getFontHeight() + 1;
-		
-		final String[] artists = new String[song.artists.length];
-		for(int i = 0; i < song.artists.length; i++) {
-			artists[i] = song.artists[i].name;
-		}
-		
-		matrixStack.pushPose();
-		matrixStack.translate(leftOffset, topOffset, 0);
-		matrixStack.scale(0.75f, 0.75f, 1);
-		
-		fr.drawString("by " + Strings.join(artists, ", "), 0, 0, Color.LIGHT_GRAY.getRGB());
-		fr.drawString("on " + song.album.name, 0, fr.getFontHeight() + 1, Color.LIGHT_GRAY.getRGB());
-		
-		matrixStack.popPose();
-		
-		topOffset += (fr.getFontHeight() + 1) * 2;
-		
-		renderer.popScissorBox();
+		this.songInfo.setX(leftOffset);
+		this.songInfo.setY(topOffset);
+		this.songInfo.render(renderer, context, mouseX, mouseY, status);
+		topOffset += this.songInfo.getHeight();
 		
 		/////////////////////////////////////////////////////////////////////
 		
@@ -361,6 +351,124 @@ public class SpotifyHudElement extends ResizeableHudElement {
 			mouseY -= SpotifyHudElement.this.getStartY();
 			
 			return mouseX >= this.getX() && mouseX <= this.getX() + this.getScaledWidth() && mouseY >= this.getY() && mouseY <= this.getY() + this.getScaledHeight();
+		}
+	}
+	
+	class SongInfoHandler extends ElementHandler {
+		
+		private final ScrollingText title = new ScrollingText();
+		private final ScrollingText artists = new ScrollingText();
+		private final ScrollingText album = new ScrollingText();
+		
+		@Override
+		void render(IRenderer2D renderer, RenderContext context, int mouseX, int mouseY, PlaybackState status) {
+			final IFontRenderer fr = SpotifyHudElement.this.getFontRenderer();
+			final PoseStack matrixStack = context.pose();
+			
+			matrixStack.pushPose();
+			matrixStack.translate(this.getX(), this.getY(), 0);
+			renderer.scissorBox(0, 0, this.getWidth(), this.getHeight());
+			
+			//smaller scissorbox for title to make room for spotify logo
+			final double titleMaxWidth = this.getWidth() - 20;
+			renderer.scissorBox(0, -1, titleMaxWidth, this.getHeight());
+			this.title.render(context, renderer, fr, titleMaxWidth, -1);
+			
+			matrixStack.translate(0, fr.getFontHeight() + 1, 0);
+			matrixStack.scale(0.75f, 0.75f, 1);
+			
+			this.artists.render(context, renderer, fr, titleMaxWidth / 0.75, Color.LIGHT_GRAY.getRGB());
+			
+			renderer.popScissorBox();
+			
+			matrixStack.translate(0, fr.getFontHeight() + 1, 0);
+			
+			this.album.render(context, renderer, fr, this.getWidth() / 0.75, Color.LIGHT_GRAY.getRGB());
+			
+			renderer.popScissorBox();
+			matrixStack.popPose();
+		}
+		
+		@Override
+		public double getHeight() {
+			return (getFontRenderer().getFontHeight() + 1) * 3;
+		}
+		
+		@Override
+		public boolean mouseClicked(double mouseX, double mouseY, int button) {
+			return false;
+		}
+		
+		public void updateSong(PlaybackState.Item song) {
+			this.title.setText(song.name);
+			
+			final String[] artists = new String[song.artists.length];
+			for(int i = 0; i < song.artists.length; i++) {
+				artists[i] = song.artists[i].name;
+			}
+			
+			this.artists.setText("by " + Strings.join(artists, ", "));
+			this.album.setText("on " + song.album.name);
+		}
+		
+		static class ScrollingText {
+			
+			private String text;
+			private double scroll = 0;
+			private boolean scrolling = false;
+			private boolean scrollingForward = false;
+			private final Timer pauseTimer = new Timer();
+			private long lastUpdate = 0;
+			
+			void render(RenderContext context, IRenderer2D renderer, IFontRenderer fr, double width, int color) {
+				if(this.text == null) {
+					return;
+				}
+				
+				final double textWidth = fr.getStringWidth(this.text);
+				final double maxScroll = textWidth - width;
+				
+				if(maxScroll <= 0) {
+					fr.drawString(this.text, 0, 0, color);
+					return;
+				}
+				
+				if(this.scrolling) {
+					this.pauseTimer.reset();
+					
+					if(this.scrollingForward) {
+						this.scroll += (System.currentTimeMillis() - this.lastUpdate) / 75f;
+						
+						if(this.scroll >= maxScroll) {
+							this.scroll = maxScroll;
+							this.scrolling = false;
+						}
+					} else {
+						this.scroll -= (System.currentTimeMillis() - this.lastUpdate) / 75f;
+						
+						if(this.scroll <= 0) {
+							this.scroll = 0;
+							this.scrolling = false;
+						}
+					}
+				} else {
+					if(this.pauseTimer.passed(2500)) {
+						this.scrolling = true;
+						this.scrollingForward = !this.scrollingForward;
+					}
+				}
+				
+				fr.drawString(this.text, -this.scroll, 0, color);
+				this.lastUpdate = System.currentTimeMillis();
+			}
+			
+			void setText(String text) {
+				this.text = text;
+				this.scroll = 0;
+				this.pauseTimer.reset();
+				this.scrolling = false;
+				this.scrollingForward = false;
+			}
 		}
 	}
 	

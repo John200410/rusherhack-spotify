@@ -95,6 +95,16 @@ public class PlaybackState {
 		public static class ExternalUrls {
 			public String spotify;
 		}
+		
+		@Override
+		public int hashCode() {
+			return this.id.hashCode();
+		}
+		
+		@Override
+		public boolean equals(Object obj) {
+			return obj instanceof Item && ((Item) obj).id.equals(this.id);
+		}
 	}
 
 	public static class Actions {
