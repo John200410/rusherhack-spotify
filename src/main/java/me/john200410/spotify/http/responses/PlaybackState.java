@@ -98,10 +98,15 @@ public class PlaybackState {
 	}
 
 	public static class Actions {
-		public Disallows disallows;
-
-		public static class Disallows {
-			public boolean resuming;
-		}
+		public boolean interrupting_playback;
+		public boolean pausing;
+		public boolean resuming;
+		public boolean seeking;
+		public boolean skipping_next;
+		public boolean skipping_prev;
+		public boolean toggling_repeat_context;
+		public boolean toggling_repeat_track;
+		public boolean toggling_shuffle;
+		public boolean transferring_playback;
 	}
 }

@@ -19,7 +19,6 @@ import org.rusherhack.client.api.render.RenderContext;
 import org.rusherhack.client.api.render.font.IFontRenderer;
 import org.rusherhack.client.api.render.graphic.VectorGraphic;
 import org.rusherhack.client.api.ui.ScaledElementBase;
-import org.rusherhack.client.api.utils.ChatUtils;
 import org.rusherhack.client.api.utils.InputUtils;
 import org.rusherhack.core.event.stage.Stage;
 import org.rusherhack.core.event.subscribe.Subscribe;
@@ -40,6 +39,8 @@ import java.net.http.HttpResponse;
  * @author John200410
  */
 public class SpotifyHudElement extends ResizeableHudElement {
+	
+	public static final int BACKGROUND_COLOR = ColorUtils.transparency(Color.BLACK.getRGB(), 0.5f);
 	
 	/**
 	 * Settings
@@ -210,6 +211,10 @@ public class SpotifyHudElement extends ResizeableHudElement {
 		/////////////////////////////////////////////////////////////////////
 		double topOffset = 5;
 		
+		//scissorbox cuz im too lazy to make text scroll
+		//TODO: maybe someone else can implement it if theyre reading this
+		renderer.scissorBox(0, 0, this.getWidth(), this.getHeight());
+		
 		//song details
 		fr.drawString(song.name, leftOffset, topOffset, -1);
 		topOffset += fr.getFontHeight() + 1;
@@ -229,6 +234,8 @@ public class SpotifyHudElement extends ResizeableHudElement {
 		matrixStack.popPose();
 		
 		topOffset += (fr.getFontHeight() + 1) * 2;
+		
+		renderer.popScissorBox();
 		
 		/////////////////////////////////////////////////////////////////////
 		
@@ -318,7 +325,7 @@ public class SpotifyHudElement extends ResizeableHudElement {
 	
 	private int getFillColor() {
 		//TODO: return color based on song
-		return ColorUtils.transparency(Color.BLACK.getRGB(), 0.5f);
+		return BACKGROUND_COLOR;
 	}
 	
 	private boolean isConnected() {
@@ -404,7 +411,7 @@ public class SpotifyHudElement extends ResizeableHudElement {
 				final double seekingTimeWidth = fr.getStringWidth(seekingTime);
 				final double seekX = MathUtils.clamp(mouseX, 0, width);
 				
-				renderer._drawRoundedRectangle(seekX - seekingTimeWidth / 2f, this.getHeight() - progressBarHeight - 1 - durationHeight, seekingTimeWidth, durationHeight, 1, true, false, 0, ColorUtils.transparency(Color.BLACK.getRGB(), 0.5f), 0);
+				renderer._drawRoundedRectangle(seekX - seekingTimeWidth / 2f, this.getHeight() - progressBarHeight - 1 - durationHeight, seekingTimeWidth, durationHeight, 1, true, false, 0, BACKGROUND_COLOR, 0);
 				fr.drawString(seekingTime, seekX - seekingTimeWidth / 2f, this.getHeight() - progressBarHeight - 1 - durationHeight, -1);
 				
 				renderer.drawCircle(seekX, this.getHeight() - 1, 3, Color.WHITE.getRGB());
@@ -475,12 +482,10 @@ public class SpotifyHudElement extends ResizeableHudElement {
 				mouseY -= this.getY();
 				
 				
-				final double progress = MathUtils.clamp(mouseX / this.getWidth(), 0, 1);;
+				final double progress = MathUtils.clamp(mouseX / this.getWidth(), 0, 1);
 				final int progressMs = (int) (progress * song.duration_ms);
 				
-				ChatUtils.print("Seek to " + progressMs);
 				api.submitSeek(progressMs);
-				//api.submitSeek(progressMs);
 			}
 			
 			super.mouseReleased(mouseX, mouseY, button);
@@ -520,10 +525,17 @@ public class SpotifyHudElement extends ResizeableHudElement {
 			this.loopSameGraphic = new VectorGraphic("spotify/graphics/loop_same.svg", 48, 48);
 		}
 		
+		//TODO: this could use some object oriented programming
 		public void render(IRenderer2D renderer, RenderContext context, int mouseX, int mouseY, PlaybackState status) {
 			final PoseStack matrixStack = context.pose();
 			matrixStack.pushPose();
 			matrixStack.translate(this.getX(), this.getY(), 0);
+			
+			final boolean hovered = this.isHovered(mouseX, mouseY);
+			final double mouseXOffset = SpotifyHudElement.this.getStartX() + this.getX();
+			final double mouseYOffset = SpotifyHudElement.this.getStartY() + this.getY();
+			mouseX -= (int) mouseXOffset;
+			mouseY -= (int) mouseYOffset;
 			
 			final double width = this.getWidth();
 			final double mediaControlsCenter = this.getHeight() / 2f;
@@ -531,6 +543,10 @@ public class SpotifyHudElement extends ResizeableHudElement {
 			//play/pause
 			final VectorGraphic playPauseGraphic = status.is_playing ? this.pauseGraphic : this.playGraphic;
 			this.playPauseX = width / 2f - PAUSE_PLAY_SIZE / 2f;
+			final boolean playPauseHovered = hovered && mouseX >= this.playPauseX && mouseX <= this.playPauseX + PAUSE_PLAY_SIZE && mouseY <= this.getY() + PAUSE_PLAY_SIZE;
+			if(playPauseHovered) {
+				renderer._drawRoundedRectangle(this.playPauseX - 1, mediaControlsCenter - PAUSE_PLAY_SIZE / 2f - 1, PAUSE_PLAY_SIZE + 2, PAUSE_PLAY_SIZE + 2, 3, true, false, 0, BACKGROUND_COLOR, 0);
+			}
 			renderer.drawGraphicRectangle(playPauseGraphic, this.playPauseX, mediaControlsCenter - PAUSE_PLAY_SIZE / 2f, PAUSE_PLAY_SIZE, PAUSE_PLAY_SIZE);
 			
 			final double smallerGraphicY = mediaControlsCenter - CONTROL_SIZE / 2f;
@@ -539,23 +555,39 @@ public class SpotifyHudElement extends ResizeableHudElement {
 			
 			//back
 			this.backX = mediaLeftOffset - CONTROL_SIZE;
+			final boolean backHovered = hovered && mouseX >= this.backX && mouseX <= this.backX + CONTROL_SIZE && mouseY <= this.getY() + CONTROL_SIZE;
+			if(backHovered) {
+				renderer._drawRoundedRectangle(this.backX, smallerGraphicY, CONTROL_SIZE, CONTROL_SIZE, 3, true, false, 0, BACKGROUND_COLOR, 0);
+			}
 			renderer.drawGraphicRectangle(this.backGraphic, this.backX, smallerGraphicY, CONTROL_SIZE, CONTROL_SIZE);
 			mediaLeftOffset -= CONTROL_SIZE + 5;
 			
 			//next
 			this.nextX = mediaRightOffset;
+			final boolean nextHovered = hovered && mouseX >= this.nextX && mouseX <= this.nextX + CONTROL_SIZE && mouseY <= this.getY() + CONTROL_SIZE;
+			if(nextHovered) {
+				renderer._drawRoundedRectangle(this.nextX, smallerGraphicY, CONTROL_SIZE, CONTROL_SIZE, 3, true, false, 0, BACKGROUND_COLOR, 0);
+			}
 			renderer.drawGraphicRectangle(this.nextGraphic, this.nextX, smallerGraphicY, CONTROL_SIZE, CONTROL_SIZE);
 			mediaRightOffset += CONTROL_SIZE + 5;
 			
 			//shuffle
 			final VectorGraphic shuffleGraphic = status.shuffle_state ? this.shuffleOnGraphic : this.shuffleOffGraphic;
 			this.shuffleX = mediaLeftOffset - CONTROL_SIZE;
+			final boolean shuffleHovered = hovered && mouseX >= this.shuffleX && mouseX <= this.shuffleX + CONTROL_SIZE && mouseY <= this.getY() + CONTROL_SIZE;
+			if(shuffleHovered) {
+				renderer._drawRoundedRectangle(this.shuffleX, smallerGraphicY, CONTROL_SIZE, CONTROL_SIZE, 3, true, false, 0, BACKGROUND_COLOR, 0);
+			}
 			renderer.drawGraphicRectangle(shuffleGraphic, this.shuffleX, smallerGraphicY, CONTROL_SIZE, CONTROL_SIZE);
 			mediaLeftOffset -= CONTROL_SIZE + 5;
 			
 			//loop
 			final VectorGraphic loopGraphic = status.repeat_state.equals("off") ? this.loopOffGraphic : status.repeat_state.equals("track") ? this.loopSameGraphic : this.loopAllGraphic;
 			this.loopX = mediaRightOffset;
+			final boolean loopHovered = hovered && mouseX >= this.loopX && mouseX <= this.loopX + CONTROL_SIZE && mouseY <= this.getY() + CONTROL_SIZE;
+			if(loopHovered) {
+				renderer._drawRoundedRectangle(this.loopX, smallerGraphicY, CONTROL_SIZE, CONTROL_SIZE, 3, true, false, 0, BACKGROUND_COLOR, 0);
+			}
 			renderer.drawGraphicRectangle(loopGraphic, this.loopX, smallerGraphicY + 1, CONTROL_SIZE, CONTROL_SIZE);
 			mediaRightOffset += CONTROL_SIZE + 5;
 			
