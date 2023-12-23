@@ -131,12 +131,13 @@ public class SpotifyHudElement extends ResizeableHudElement {
 		final PlaybackState status = api.getCurrentStatus();
 		
 		if(status == null) {
-			//ChatUtils.print("Status null?");
 			return;
 		}
-		
-		//ChatUtils.print(status.data.song.name);
-		
+
+		if (status.currently_playing_type.equals("ad") || status.currently_playing_type.equals("unknown") || status.currently_playing_type.equals("episode")) {
+			return;
+		}
+
 		if(this.song == null || !this.song.equals(status.item)) {
 			
 			this.song = status.item;
@@ -224,7 +225,25 @@ public class SpotifyHudElement extends ResizeableHudElement {
 			fr.drawString("No status", 5, 10, -1);
 			return;
 		}
-		
+
+		if (status.currently_playing_type.equals("ad")) {
+			this.trackThumbnailTexture.setPixels(null);
+			fr.drawString("Ad playing", 5, 10, -1);
+			return;
+		}
+
+		if (status.currently_playing_type.equals("unknown")) {
+			this.trackThumbnailTexture.setPixels(null);
+			fr.drawString("Unknown media playing", 5, 10, -1);
+			return;
+		}
+
+		if (status.currently_playing_type.equals("episode")) {
+			this.trackThumbnailTexture.setPixels(null);
+			fr.drawString("Podcast is playing", 5, 10, -1);
+			return;
+		}
+
 		final PlaybackState.Item song = status.item;
 		
 		if(song == null) {
@@ -232,6 +251,7 @@ public class SpotifyHudElement extends ResizeableHudElement {
 			fr.drawString("No song loaded", 5, 10, -1);
 			return;
 		}
+
 		
 		final double leftOffset = 75;
 		

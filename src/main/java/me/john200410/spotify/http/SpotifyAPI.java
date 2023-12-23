@@ -164,7 +164,7 @@ public class SpotifyAPI {
 				"GET",
 				this.getUrl("/v1/me/player", false)
 		);
-		
+
 		this.statusUpdateTimer.reset();
 		
 		switch(request.statusCode()) {
