@@ -80,6 +80,8 @@ public class SpotifyHudElement extends ResizeableHudElement {
 	private final SpotifyPlugin plugin;
 	private PlaybackState.Item song = null;
 	private boolean consumedButtonClick = false;
+
+	private Boolean ai = false;
 	
 	public SpotifyHudElement(SpotifyPlugin plugin) throws IOException {
 		super("Spotify");
@@ -138,9 +140,35 @@ public class SpotifyHudElement extends ResizeableHudElement {
 			return;
 		}
 
-		if(this.song == null || !this.song.equals(status.item)) {
-			
+		if (this.song == null || !this.song.equals(status.item)) {
+			if (status.item == null && this.ai) {
+				return;
+			}
+
 			this.song = status.item;
+
+			if (this.song == null) {
+				this.song = new PlaybackState.Item();
+
+				this.song.album = new PlaybackState.Item.Album();
+				this.song.artists = new PlaybackState.Item.Artist[1];
+				this.song.album.images = new PlaybackState.Item.Album.Image[1];
+				this.song.artists[0] = new PlaybackState.Item.Artist();
+				this.song.album.images[0] = new PlaybackState.Item.Album.Image();
+
+				this.song.artists[0].name = "Spotify";
+				this.song.album.name = "Songs Made For You";
+				this.song.name = "DJ";
+				this.song.duration_ms = 30000;
+				this.song.album.images[0].url = "https://i.imgur.com/29vr8jz.png";
+				this.song.album.images[0].width = 640;
+				this.song.album.images[0].height = 640;
+
+				this.ai = true;
+			} else {
+				this.ai = false;
+			}
+
 			this.songInfo.updateSong(this.song);
 			//update texture
 			if(this.song.album.images.length > 0) {
@@ -148,7 +176,6 @@ public class SpotifyHudElement extends ResizeableHudElement {
 				//highest resolution thumbnail
 				PlaybackState.Item.Album.Image thumbnail = null;
 				for(PlaybackState.Item.Album.Image t : this.song.album.images) {
-					
 					//too large
 					if(t.width < 640 || t.height < 640) continue;
 					
@@ -244,13 +271,13 @@ public class SpotifyHudElement extends ResizeableHudElement {
 			return;
 		}
 
-		final PlaybackState.Item song = status.item;
+//		final PlaybackState.Item song = status.item;
 		
-		if(song == null) {
-			this.trackThumbnailTexture.setPixels(null);
-			fr.drawString("No song loaded", 5, 10, -1);
-			return;
-		}
+//		if(song == null) {
+//			this.trackThumbnailTexture.setPixels(null);
+//			fr.drawString("No song loaded", 5, 10, -1);
+//			return;
+//		}
 
 		
 		final double leftOffset = 75;
@@ -556,7 +583,14 @@ public class SpotifyHudElement extends ResizeableHudElement {
 		void render(IRenderer2D renderer, RenderContext context, int mouseX, int mouseY, PlaybackState status) {
 			final IFontRenderer fr = SpotifyHudElement.this.getFontRenderer();
 			final PoseStack matrixStack = context.pose();
-			final PlaybackState.Item song = status.item;
+			PlaybackState.Item song = status.item;
+
+			if (song == null) {
+				song = new PlaybackState.Item();
+
+				song.duration_ms = 30000;
+			}
+
 			final boolean hovered = this.isHovered(mouseX, mouseY);
 			
 			matrixStack.pushPose();
