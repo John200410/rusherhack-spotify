@@ -136,7 +136,7 @@ public class SpotifyHudElement extends ResizeableHudElement {
 			return;
 		}
 
-		if (status.currently_playing_type.equals("ad") || status.currently_playing_type.equals("unknown") || status.currently_playing_type.equals("episode")) {
+		if (status.currently_playing_type.equals("ad") || status.currently_playing_type.equals("unknown") || status.currently_playing_type.equals("episode") || status.item.uri.startsWith("spotify:local::")) {
 			return;
 		}
 
@@ -259,7 +259,7 @@ public class SpotifyHudElement extends ResizeableHudElement {
 			return;
 		}
 
-		if (status.currently_playing_type.equals("unknown")) {
+		if (status.currently_playing_type.equals("unknown") || status.item.uri.startsWith("spotify:local::")) {
 			this.trackThumbnailTexture.setPixels(null);
 			fr.drawString("Unknown media playing", 5, 10, -1);
 			return;
