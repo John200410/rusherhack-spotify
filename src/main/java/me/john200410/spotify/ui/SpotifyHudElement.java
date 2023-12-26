@@ -47,6 +47,24 @@ import java.net.http.HttpResponse;
 public class SpotifyHudElement extends ResizeableHudElement {
 	
 	public static final int BACKGROUND_COLOR = ColorUtils.transparency(Color.BLACK.getRGB(), 0.5f);
+	private static final PlaybackState.Item AI_DJ_SONG = new PlaybackState.Item(); //item that is displayed when the DJ is talking
+	
+	static {
+		AI_DJ_SONG.album = new PlaybackState.Item.Album();
+		AI_DJ_SONG.artists = new PlaybackState.Item.Artist[1];
+		AI_DJ_SONG.album.images = new PlaybackState.Item.Album.Image[1];
+		AI_DJ_SONG.artists[0] = new PlaybackState.Item.Artist();
+		AI_DJ_SONG.album.images[0] = new PlaybackState.Item.Album.Image();
+		
+		AI_DJ_SONG.artists[0].name = "Spotify";
+		AI_DJ_SONG.album.name = "Songs Made For You";
+		AI_DJ_SONG.name = AI_DJ_SONG.id = "DJ";
+		AI_DJ_SONG.duration_ms = 30000;
+		AI_DJ_SONG.album.images[0].url = "https://i.imgur.com/29vr8jz.png";
+		AI_DJ_SONG.album.images[0].width = 640;
+		AI_DJ_SONG.album.images[0].height = 640;
+		AI_DJ_SONG.uri = "";
+	}
 	
 	/**
 	 * Settings
@@ -80,7 +98,7 @@ public class SpotifyHudElement extends ResizeableHudElement {
 	private final SpotifyPlugin plugin;
 	private PlaybackState.Item song = null;
 	private boolean consumedButtonClick = false;
-
+	
 	private Boolean ai = false;
 	
 	public SpotifyHudElement(SpotifyPlugin plugin) throws IOException {
@@ -135,40 +153,17 @@ public class SpotifyHudElement extends ResizeableHudElement {
 		if(status == null) {
 			return;
 		}
-
-		if (status.currently_playing_type.equals("ad") || status.currently_playing_type.equals("unknown") || status.currently_playing_type.equals("episode") || status.item.uri.startsWith("spotify:local::")) {
+		
+		if(status.currently_playing_type.equals("ad") || status.currently_playing_type.equals("unknown") || status.currently_playing_type.equals("episode") || (status.item != null && status.item.uri.startsWith("spotify:local::"))) {
 			return;
 		}
-
-		if (this.song == null || !this.song.equals(status.item)) {
-			if (status.item == null && this.ai) {
-				return;
+		
+		if(this.song == null || !this.song.equals(status.item)) {
+			if(status.item == null) {
+				status.item = AI_DJ_SONG;
 			}
-
+			
 			this.song = status.item;
-
-			if (this.song == null) {
-				this.song = new PlaybackState.Item();
-
-				this.song.album = new PlaybackState.Item.Album();
-				this.song.artists = new PlaybackState.Item.Artist[1];
-				this.song.album.images = new PlaybackState.Item.Album.Image[1];
-				this.song.artists[0] = new PlaybackState.Item.Artist();
-				this.song.album.images[0] = new PlaybackState.Item.Album.Image();
-
-				this.song.artists[0].name = "Spotify";
-				this.song.album.name = "Songs Made For You";
-				this.song.name = "DJ";
-				this.song.duration_ms = 30000;
-				this.song.album.images[0].url = "https://i.imgur.com/29vr8jz.png";
-				this.song.album.images[0].width = 640;
-				this.song.album.images[0].height = 640;
-
-				this.ai = true;
-			} else {
-				this.ai = false;
-			}
-
 			this.songInfo.updateSong(this.song);
 			//update texture
 			if(this.song.album.images.length > 0) {
@@ -252,39 +247,41 @@ public class SpotifyHudElement extends ResizeableHudElement {
 			fr.drawString("No status", 5, 10, -1);
 			return;
 		}
-
-		if (status.currently_playing_type.equals("ad")) {
+		
+		if(status.currently_playing_type.equals("ad")) {
 			this.trackThumbnailTexture.setPixels(null);
 			fr.drawString("Ad playing", 5, 10, -1);
 			return;
 		}
-
-		if (status.currently_playing_type.equals("unknown") || status.item.uri.startsWith("spotify:local::")) {
+		
+		if(status.currently_playing_type.equals("unknown") || (status.item != null && status.item.uri.startsWith("spotify:local::"))) {
 			this.trackThumbnailTexture.setPixels(null);
 			fr.drawString("Unknown media playing", 5, 10, -1);
 			return;
 		}
-
-		if (status.currently_playing_type.equals("episode")) {
+		
+		if(status.currently_playing_type.equals("episode")) {
 			this.trackThumbnailTexture.setPixels(null);
 			fr.drawString("Podcast is playing", 5, 10, -1);
 			return;
 		}
 
 //		final PlaybackState.Item song = status.item;
-		
+
 //		if(song == null) {
 //			this.trackThumbnailTexture.setPixels(null);
 //			fr.drawString("No song loaded", 5, 10, -1);
 //			return;
 //		}
-
+		
 		
 		final double leftOffset = 75;
 		
 		//set correct mouse pos because its set to -1, -1 when not in hud editor
-		mouseX = (int) InputUtils.getMouseX();
-		mouseY = (int) InputUtils.getMouseY();
+		if(!mc.mouseHandler.isMouseGrabbed()) {
+			mouseX = (int) InputUtils.getMouseX();
+			mouseY = (int) InputUtils.getMouseY();
+		}
 		
 		/////////////////////////////////////////////////////////////////////
 		//top
@@ -584,13 +581,13 @@ public class SpotifyHudElement extends ResizeableHudElement {
 			final IFontRenderer fr = SpotifyHudElement.this.getFontRenderer();
 			final PoseStack matrixStack = context.pose();
 			PlaybackState.Item song = status.item;
-
-			if (song == null) {
+			
+			if(song == null) {
 				song = new PlaybackState.Item();
-
+				
 				song.duration_ms = 30000;
 			}
-
+			
 			final boolean hovered = this.isHovered(mouseX, mouseY);
 			
 			matrixStack.pushPose();

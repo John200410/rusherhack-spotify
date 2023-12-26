@@ -1,6 +1,7 @@
 package me.john200410.spotify.http.responses;
 
 /**
+ * TODO: make non-null
  * @author John200410 12/19/2023
  */
 public class PlaybackState {
