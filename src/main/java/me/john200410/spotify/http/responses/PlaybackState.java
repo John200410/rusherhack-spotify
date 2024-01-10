@@ -104,7 +104,7 @@ public class PlaybackState {
 		
 		@Override
 		public boolean equals(Object obj) {
-			return obj instanceof Item && ((Item) obj).id.equals(this.id);
+			return obj instanceof Item item && item.id != null && item.id.equals(this.id);
 		}
 	}
 
