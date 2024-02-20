@@ -1,7 +1,6 @@
 package me.john200410.spotify.ui;
 
 import com.mojang.blaze3d.platform.NativeImage;
-import com.mojang.blaze3d.platform.TextureUtil;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.PoseStack;
 import joptsimple.internal.Strings;
@@ -12,9 +11,9 @@ import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.ChatScreen;
 import net.minecraft.client.renderer.texture.DynamicTexture;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.util.FastColor;
 import org.apache.commons.io.IOUtils;
 import org.lwjgl.glfw.GLFW;
-import org.lwjgl.system.MemoryUtil;
 import org.rusherhack.client.api.bind.key.GLFWKey;
 import org.rusherhack.client.api.events.client.input.EventMouse;
 import org.rusherhack.client.api.feature.hud.ResizeableHudElement;
@@ -45,9 +44,6 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
-import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
-import java.nio.LongBuffer;
 
 /**
  * @author John200410
@@ -205,12 +201,14 @@ public class SpotifyHudElement extends ResizeableHudElement {
 						final InputStream inputStream = response.body();
 						try {
 							final BufferedImage bufferedImage = ImageIO.read(inputStream);
-							nativeImage = new NativeImage(bufferedImage.getWidth(), bufferedImage.getHeight(), false);
-							
+							nativeImage = new NativeImage(NativeImage.Format.RGBA, bufferedImage.getWidth(), bufferedImage.getHeight(), false);
 							for(int x = 0; x < bufferedImage.getWidth(); x++) {
 								for(int y = 0; y < bufferedImage.getHeight(); y++) {
 									final int color = bufferedImage.getRGB(x, y);
-									nativeImage.setPixelRGBA(x, y, color);
+									final int r = (color >> 16) & 0xFF;
+									final int g = (color >> 8) & 0xFF;
+									final int b = color & 0xFF;
+									nativeImage.setPixelRGBA(x, y, FastColor.ABGR32.color(255, b, g, r));
 								}
 							}
 						} finally {
