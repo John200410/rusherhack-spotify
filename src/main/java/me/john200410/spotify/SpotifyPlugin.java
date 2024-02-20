@@ -78,27 +78,7 @@ public class SpotifyPlugin extends Plugin {
 		
 		this.saveConfig();
 	}
-	
-	@Override
-	public String getName() {
-		return "Spotify";
-	}
-	
-	@Override
-	public String getVersion() {
-		return "1.1.1";
-	}
-	
-	@Override
-	public String getDescription() {
-		return "Spotify integration for rusherhack";
-	}
-	
-	@Override
-	public String[] getAuthors() {
-		return new String[]{"John200410", "DarkerInk"};
-	}
-	
+
 	public SpotifyAPI getAPI() {
 		return this.api;
 	}

@@ -1,6 +1,7 @@
 package me.john200410.spotify.ui;
 
 import com.mojang.blaze3d.platform.NativeImage;
+import com.mojang.blaze3d.platform.TextureUtil;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.PoseStack;
 import joptsimple.internal.Strings;
@@ -11,7 +12,9 @@ import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.ChatScreen;
 import net.minecraft.client.renderer.texture.DynamicTexture;
 import net.minecraft.resources.ResourceLocation;
+import org.apache.commons.io.IOUtils;
 import org.lwjgl.glfw.GLFW;
+import org.lwjgl.system.MemoryUtil;
 import org.rusherhack.client.api.bind.key.GLFWKey;
 import org.rusherhack.client.api.events.client.input.EventMouse;
 import org.rusherhack.client.api.feature.hud.ResizeableHudElement;
@@ -33,13 +36,18 @@ import org.rusherhack.core.utils.ColorUtils;
 import org.rusherhack.core.utils.MathUtils;
 import org.rusherhack.core.utils.Timer;
 
+import javax.imageio.ImageIO;
 import java.awt.*;
+import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
+import java.nio.LongBuffer;
 
 /**
  * @author John200410
@@ -192,7 +200,22 @@ public class SpotifyHudElement extends ResizeableHudElement {
 															   .build();
 						
 						final HttpResponse<InputStream> response = SpotifyAPI.HTTP_CLIENT.send(request, HttpResponse.BodyHandlers.ofInputStream());
-						final NativeImage nativeImage = NativeImage.read(response.body());
+						
+						NativeImage nativeImage;
+						final InputStream inputStream = response.body();
+						try {
+							final BufferedImage bufferedImage = ImageIO.read(inputStream);
+							nativeImage = new NativeImage(bufferedImage.getWidth(), bufferedImage.getHeight(), false);
+							
+							for(int x = 0; x < bufferedImage.getWidth(); x++) {
+								for(int y = 0; y < bufferedImage.getHeight(); y++) {
+									final int color = bufferedImage.getRGB(x, y);
+									nativeImage.setPixelRGBA(x, y, color);
+								}
+							}
+						} finally {
+							IOUtils.closeQuietly(inputStream);
+						}
 						
 						RenderSystem.recordRenderCall(() -> {
 							this.trackThumbnailTexture.setPixels(nativeImage);
