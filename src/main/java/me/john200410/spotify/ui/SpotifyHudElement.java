@@ -233,7 +233,7 @@ public class SpotifyHudElement extends ResizeableHudElement {
 	}
 	
 	@Override
-	public void renderContent(RenderContext context, int mouseX, int mouseY) {
+	public void renderContent(RenderContext context, double mouseX, double mouseY) {
 		final IRenderer2D renderer = this.getRenderer();
 		final IFontRenderer fr = this.getFontRenderer();
 		final SpotifyAPI api = this.plugin.getAPI();
@@ -334,7 +334,7 @@ public class SpotifyHudElement extends ResizeableHudElement {
 	}
 	
 	@Override
-	public void postRender(RenderContext context, int mouseX, int mouseY) {
+	public void postRender(RenderContext context, double mouseX, double mouseY) {
 		if(this.trackThumbnailTexture.getPixels() == null || !this.isAvailable()) return;
 		
 		//draw track thumbnail
@@ -357,10 +357,13 @@ public class SpotifyHudElement extends ResizeableHudElement {
 			return;
 		}
 		
-		double mouseX = event.getMouseX();
-		double mouseY = event.getMouseY();
+		final double mouseX = event.getMouseX();
+		final double mouseY = event.getMouseY();
 		
-		if(isHovered(mouseX, mouseY) && event.getAction() == GLFW.GLFW_PRESS) {
+		final double x = this.getStartX();
+		final double y = this.getStartY();
+		
+		if(mouseX >= x && mouseX <= x + this.getScaledWidth() && mouseY >= y && mouseY <= y + this.getScaledHeight() && event.getAction() == GLFW.GLFW_PRESS) {
 			this.consumedButtonClick = true;
 			mouseClicked(mouseX, mouseY, event.getButton());
 			this.consumedButtonClick = false;
@@ -441,7 +444,7 @@ public class SpotifyHudElement extends ResizeableHudElement {
 	
 	abstract class ElementHandler extends ScaledElementBase implements IClickable {
 		
-		abstract void render(IRenderer2D renderer, RenderContext context, int mouseX, int mouseY, PlaybackState status);
+		abstract void render(IRenderer2D renderer, RenderContext context, double mouseX, double mouseY, PlaybackState status);
 		
 		@Override
 		public double getWidth() {
@@ -477,7 +480,7 @@ public class SpotifyHudElement extends ResizeableHudElement {
 		private final ScrollingText album = new ScrollingText();
 		
 		@Override
-		void render(IRenderer2D renderer, RenderContext context, int mouseX, int mouseY, PlaybackState status) {
+		void render(IRenderer2D renderer, RenderContext context, double mouseX, double mouseY, PlaybackState status) {
 			final IFontRenderer fr = SpotifyHudElement.this.getFontRenderer();
 			final PoseStack matrixStack = context.pose();
 			
@@ -598,7 +601,7 @@ public class SpotifyHudElement extends ResizeableHudElement {
 		private boolean seeking = false;
 		
 		@Override
-		void render(IRenderer2D renderer, RenderContext context, int mouseX, int mouseY, PlaybackState status) {
+		void render(IRenderer2D renderer, RenderContext context, double mouseX, double mouseY, PlaybackState status) {
 			final IFontRenderer fr = SpotifyHudElement.this.getFontRenderer();
 			final PoseStack matrixStack = context.pose();
 			PlaybackState.Item song = status.item;
@@ -764,7 +767,7 @@ public class SpotifyHudElement extends ResizeableHudElement {
 		}
 		
 		//TODO: this could use some object oriented programming
-		public void render(IRenderer2D renderer, RenderContext context, int mouseX, int mouseY, PlaybackState status) {
+		public void render(IRenderer2D renderer, RenderContext context, double mouseX, double mouseY, PlaybackState status) {
 			final PoseStack matrixStack = context.pose();
 			matrixStack.pushPose();
 			matrixStack.translate(this.getX(), this.getY(), 0);
