@@ -234,11 +234,6 @@ public class SpotifyHudElement extends ResizeableHudElement {
 	}
 	
 	@Override
-	public boolean shouldDrawBackground() {
-		return false;
-	}
-	
-	@Override
 	public void renderContent(RenderContext context, double mouseX, double mouseY) {
 		final IRenderer2D renderer = this.getRenderer();
 		final IFontRenderer fr = this.getFontRenderer();
@@ -433,6 +428,11 @@ public class SpotifyHudElement extends ResizeableHudElement {
 	@Override
 	public double getHeight() {
 		return 75;
+	}
+	
+	@Override
+	public boolean shouldDrawBackground() {
+		return false;
 	}
 	
 	private int getFillColor() {
