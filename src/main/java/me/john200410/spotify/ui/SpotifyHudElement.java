@@ -1,6 +1,5 @@
 package me.john200410.spotify.ui;
 
-import com.mojang.blaze3d.platform.GlUtil;
 import com.mojang.blaze3d.platform.NativeImage;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.PoseStack;
@@ -232,6 +231,11 @@ public class SpotifyHudElement extends ResizeableHudElement {
 				this.trackThumbnailTexture.setPixels(null);
 			}
 		}
+	}
+	
+	@Override
+	public boolean shouldDrawBackground() {
+		return false;
 	}
 	
 	@Override
