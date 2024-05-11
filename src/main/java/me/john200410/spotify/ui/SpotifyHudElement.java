@@ -1,5 +1,6 @@
 package me.john200410.spotify.ui;
 
+import com.mojang.blaze3d.platform.GlUtil;
 import com.mojang.blaze3d.platform.NativeImage;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.PoseStack;
@@ -7,6 +8,7 @@ import joptsimple.internal.Strings;
 import me.john200410.spotify.SpotifyPlugin;
 import me.john200410.spotify.http.SpotifyAPI;
 import me.john200410.spotify.http.responses.PlaybackState;
+import net.minecraft.Util;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.ChatScreen;
 import net.minecraft.client.renderer.texture.DynamicTexture;
@@ -123,8 +125,8 @@ public class SpotifyHudElement extends ResizeableHudElement {
 		this.authenticateButton.onChange((b) -> {
 			if(!b) {
 				try {
-					Desktop.getDesktop().browse(new URI("http://localhost:4000/"));
-				} catch(IOException | URISyntaxException e) {
+					Util.getPlatform().openUri(new URI("http://localhost:4000/"));
+				} catch(URISyntaxException e) {
 					this.plugin.getLogger().error(e.getMessage());
 					e.printStackTrace();
 				}
