@@ -21,6 +21,8 @@ import java.util.Map;
 import java.util.Objects;
 
 /**
+ * TODO: generate random port for local authenticate
+ *
  * @author John200410
  */
 public class SpotifyPlugin extends Plugin {
@@ -44,26 +46,33 @@ public class SpotifyPlugin extends Plugin {
 			}
 		}
 		
+		//setup local webserver
 		try {
 			this.httpServer = this.setupServer();
 			this.httpServer.start();
-			this.api = new SpotifyAPI(this);
-			this.api.appID = this.config.appId;
-			this.api.appSecret = this.config.appSecret;
-			this.api.refreshToken = this.config.refresh_token;
-			
-			if(!this.api.appID.isEmpty() && !this.api.appSecret.isEmpty() && !this.api.refreshToken.isEmpty()) {
-				try {
-					this.api.authorizationRefreshToken();
-				} catch(Throwable t) {
-					t.printStackTrace();
-				}
+		} catch(Throwable t) {
+			this.logger.error("Failed to setup local webserver", t);
+		}
+		
+		this.api = new SpotifyAPI(this);
+		this.api.appID = this.config.appId;
+		this.api.appSecret = this.config.appSecret;
+		this.api.refreshToken = this.config.refresh_token;
+		
+		if(!this.api.appID.isEmpty() && !this.api.appSecret.isEmpty() && !this.api.refreshToken.isEmpty()) {
+			try {
+				this.api.authorizationRefreshToken();
+			} catch(Throwable t) {
+				this.logger.error("Failed to refresh API token", t);
 			}
-			
-			//hud element
+		}
+		
+		//hud element
+		try {
 			RusherHackAPI.getHudManager().registerFeature(new SpotifyHudElement(this));
 		} catch(IOException e) {
 			//throw exception so plugin doesnt load
+			this.onUnload();
 			throw new RuntimeException(e);
 		}
 		
@@ -78,7 +87,7 @@ public class SpotifyPlugin extends Plugin {
 		
 		this.saveConfig();
 	}
-
+	
 	public SpotifyAPI getAPI() {
 		return this.api;
 	}
@@ -86,60 +95,61 @@ public class SpotifyPlugin extends Plugin {
 	private HttpServer setupServer() throws IOException {
 		final HttpServer server = HttpServer.create(new InetSocketAddress("0.0.0.0", 4000), 0);
 		
-		server.createContext("/", (req) -> {
-			final URI uri = req.getRequestURI();
-			
-			byte[] response = new byte[0];
-			
-			final Map<String, String> queryParams = getQueryParameters(uri.getQuery());
-			
-			if(uri.getPath().equals("/callback")) {
-				final String code = queryParams.get("code");
-				
-				try {
-					var res = this.api.authorizationCodeGrant(code);
+		server.createContext(
+				"/", (req) -> {
+					final URI uri = req.getRequestURI();
 					
-					if(res) {
-						this.logger.info("Successfully got access token");
-					} else {
-						this.logger.error("Failed to get access token");
+					byte[] response = new byte[0];
+					
+					final Map<String, String> queryParams = getQueryParameters(uri.getQuery());
+					
+					if(uri.getPath().equals("/callback")) {
+						final String code = queryParams.get("code");
+						
+						try {
+							var res = this.api.authorizationCodeGrant(code);
+							
+							if(res) {
+								this.logger.info("Successfully got access token");
+							} else {
+								this.logger.error("Failed to get access token");
+							}
+							
+							
+						} catch(InterruptedException e) {
+							this.logger.error("Failed to get access token", e);
+						}
+						
+						try(InputStream is = SpotifyPlugin.class.getResourceAsStream("/site/success.html")) {
+							Objects.requireNonNull(is, "Couldn't find login.html");
+							response = IOUtils.toByteArray(is);
+						}
+						
+						req.getResponseHeaders().add("Content-Type", "text/html");
+					} else if(uri.getPath().equals("/")) {
+						
+						try(InputStream is = SpotifyPlugin.class.getResourceAsStream("/site/login.html")) {
+							Objects.requireNonNull(is, "Couldn't find login.html");
+							response = IOUtils.toByteArray(is);
+						}
+						
+						req.getResponseHeaders().add("Content-Type", "text/html");
+					} else if(uri.getPath().equals("/setup")) {
+						final String appId = queryParams.get("appId");
+						final String appSecret = queryParams.get("appSecret");
+						
+						String oauthUrl = this.api.setAppID(appId).setAppSecret(appSecret).setRedirectURI("http://localhost:4000/callback").generateOAuthUrl();
+						
+						response = ("{\"url\": \"" + oauthUrl + "\"}").getBytes();
+						req.getResponseHeaders().add("Content-Type", "application/json");
 					}
 					
-					
-				} catch(InterruptedException e) {
-					e.printStackTrace();
-					this.logger.error("Failed to get access token");
+					req.getResponseHeaders().add("Content-Type", "text/html");
+					req.sendResponseHeaders(200, response.length);
+					req.getResponseBody().write(response);
+					req.getResponseBody().close();
 				}
-				
-				try(InputStream is = SpotifyPlugin.class.getResourceAsStream("/site/success.html")) {
-					Objects.requireNonNull(is, "Couldn't find login.html");
-					response = IOUtils.toByteArray(is);
-				}
-				
-				req.getResponseHeaders().add("Content-Type", "text/html");
-			} else if(uri.getPath().equals("/")) {
-				
-				try(InputStream is = SpotifyPlugin.class.getResourceAsStream("/site/login.html")) {
-					Objects.requireNonNull(is, "Couldn't find login.html");
-					response = IOUtils.toByteArray(is);
-				}
-				
-				req.getResponseHeaders().add("Content-Type", "text/html");
-			} else if(uri.getPath().equals("/setup")) {
-				final String appId = queryParams.get("appId");
-				final String appSecret = queryParams.get("appSecret");
-				
-				String oauthUrl = this.api.setAppID(appId).setAppSecret(appSecret).setRedirectURI("http://localhost:4000/callback").generateOAuthUrl();
-				
-				response = ("{\"url\": \"" + oauthUrl + "\"}").getBytes();
-				req.getResponseHeaders().add("Content-Type", "application/json");
-			}
-			
-			req.getResponseHeaders().add("Content-Type", "text/html");
-			req.sendResponseHeaders(200, response.length);
-			req.getResponseBody().write(response);
-			req.getResponseBody().close();
-		});
+		);
 		
 		return server;
 	}

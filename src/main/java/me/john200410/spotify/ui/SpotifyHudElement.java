@@ -8,13 +8,12 @@ import me.john200410.spotify.SpotifyPlugin;
 import me.john200410.spotify.http.SpotifyAPI;
 import me.john200410.spotify.http.responses.PlaybackState;
 import net.minecraft.Util;
-import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.ChatScreen;
 import net.minecraft.client.renderer.texture.DynamicTexture;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.util.FastColor;
 import org.apache.commons.io.IOUtils;
 import org.lwjgl.glfw.GLFW;
+import org.lwjgl.system.MemoryStack;
+import org.lwjgl.system.MemoryUtil;
 import org.rusherhack.client.api.bind.key.GLFWKey;
 import org.rusherhack.client.api.events.client.input.EventMouse;
 import org.rusherhack.client.api.feature.hud.ResizeableHudElement;
@@ -25,6 +24,7 @@ import org.rusherhack.client.api.render.graphic.VectorGraphic;
 import org.rusherhack.client.api.setting.BindSetting;
 import org.rusherhack.client.api.setting.ColorSetting;
 import org.rusherhack.client.api.ui.ScaledElementBase;
+import org.rusherhack.client.api.utils.ChatUtils;
 import org.rusherhack.client.api.utils.InputUtils;
 import org.rusherhack.core.bind.key.NullKey;
 import org.rusherhack.core.event.stage.Stage;
@@ -39,12 +39,14 @@ import org.rusherhack.core.utils.Timer;
 import javax.imageio.ImageIO;
 import java.awt.*;
 import java.awt.image.BufferedImage;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.nio.ByteBuffer;
 
 /**
  * @author John200410
@@ -98,13 +100,11 @@ public class SpotifyHudElement extends ResizeableHudElement {
 	 * Variables
 	 */
 	private final VectorGraphic spotifyLogo;
-	private final ResourceLocation trackThumbnailResourceLocation;
 	private final DynamicTexture trackThumbnailTexture;
 	private final SpotifyPlugin plugin;
 	private PlaybackState.Item song = null;
 	private boolean consumedButtonClick = false;
 	
-	private Boolean ai = false;
 	
 	public SpotifyHudElement(SpotifyPlugin plugin) throws IOException {
 		super("Spotify");
@@ -115,10 +115,8 @@ public class SpotifyHudElement extends ResizeableHudElement {
 		this.songInfo = new SongInfoHandler();
 		
 		this.spotifyLogo = new VectorGraphic("spotify/graphics/spotify_logo.svg", 32, 32);
-		
 		this.trackThumbnailTexture = new DynamicTexture(640, 640, false);
 		this.trackThumbnailTexture.setFilter(true, true);
-		this.trackThumbnailResourceLocation = mc.getTextureManager().register("rusherhack-spotify-track-thumbnail/", this.trackThumbnailTexture);
 		
 		//dummy setting whos only purpose is to be clicked to open the web browser
 		this.authenticateButton.onChange((b) -> {
@@ -126,8 +124,7 @@ public class SpotifyHudElement extends ResizeableHudElement {
 				try {
 					Util.getPlatform().openUri(new URI("http://localhost:4000/"));
 				} catch(URISyntaxException e) {
-					this.plugin.getLogger().error(e.getMessage());
-					e.printStackTrace();
+					this.plugin.getLogger().error(e.getMessage(), e);
 				}
 				
 				this.authenticateButton.setValue(true);
@@ -176,9 +173,6 @@ public class SpotifyHudElement extends ResizeableHudElement {
 				//highest resolution thumbnail
 				PlaybackState.Item.Album.Image thumbnail = null;
 				for(PlaybackState.Item.Album.Image t : this.song.album.images) {
-					//too large
-					if(t.width < 640 || t.height < 640) continue;
-					
 					if(thumbnail == null || (t.width > thumbnail.width && t.height > thumbnail.height)) {
 						thumbnail = t;
 					}
@@ -191,40 +185,36 @@ public class SpotifyHudElement extends ResizeableHudElement {
 				
 				final String thumbnailURL = thumbnail.url;
 				api.submit(() -> {
+					
+					InputStream inputStream = null;
+					
 					try {
 						final HttpRequest request = HttpRequest.newBuilder(new URI(thumbnailURL))
 															   .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/98.0.4758.102 Safari/537.36")
 															   .build();
 						
 						final HttpResponse<InputStream> response = SpotifyAPI.HTTP_CLIENT.send(request, HttpResponse.BodyHandlers.ofInputStream());
+						inputStream = response.body();
 						
-						NativeImage nativeImage;
-						final InputStream inputStream = response.body();
-						try {
-							final BufferedImage bufferedImage = ImageIO.read(inputStream);
-							nativeImage = new NativeImage(NativeImage.Format.RGBA, bufferedImage.getWidth(), bufferedImage.getHeight(), false);
-							for(int x = 0; x < bufferedImage.getWidth(); x++) {
-								for(int y = 0; y < bufferedImage.getHeight(); y++) {
-									final int color = bufferedImage.getRGB(x, y);
-									final int r = (color >> 16) & 0xFF;
-									final int g = (color >> 8) & 0xFF;
-									final int b = color & 0xFF;
-									nativeImage.setPixelRGBA(x, y, FastColor.ABGR32.color(255, b, g, r));
-								}
-							}
-						} finally {
-							IOUtils.closeQuietly(inputStream);
-						}
+						//convert to png
+						final BufferedImage bufferedImage = ImageIO.read(inputStream);
+						final ByteArrayOutputStream imageBytes = new ByteArrayOutputStream();
+						ImageIO.write(bufferedImage, "png", imageBytes);
+						
+						final byte[] byteArray = imageBytes.toByteArray();
+						
+						final NativeImage nativeImage = readNativeImage(byteArray);
 						
 						RenderSystem.recordRenderCall(() -> {
 							this.trackThumbnailTexture.setPixels(nativeImage);
 							this.trackThumbnailTexture.upload();
 							this.trackThumbnailTexture.setFilter(true, true);
 						});
-					} catch(URISyntaxException | IOException | InterruptedException e) {
+					} catch(Throwable e) {
 						this.trackThumbnailTexture.setPixels(null);
-						this.plugin.getLogger().error(e.getMessage());
-						e.printStackTrace();
+						this.plugin.getLogger().error("Failed to update thumbnail", e);
+					} finally {
+						IOUtils.closeQuietly(inputStream);
 					}
 				});
 			} else {
@@ -247,7 +237,7 @@ public class SpotifyHudElement extends ResizeableHudElement {
 		//logo
 		renderer.drawGraphicRectangle(this.spotifyLogo, this.getWidth() - 5 - 16, 5, 16, 16);
 		
-		if(!api.isConnected()) {
+		if(!this.isConnected()) {
 			this.trackThumbnailTexture.setPixels(null);
 			fr.drawString("Not authenticated with spotify!", 5, 10, -1);
 			fr.drawString("Click the \"Authenticate\" button", 5, 30, -1);
@@ -296,6 +286,10 @@ public class SpotifyHudElement extends ResizeableHudElement {
 //			return;
 //		}
 		
+		//thumbnail
+		if(this.trackThumbnailTexture.getPixels() != null && this.isAvailable()) {
+			renderer._drawTextureRectangle(this.trackThumbnailTexture.getId(), 65, 65, 5, 5, 65, 65, 3);
+		}
 		
 		final double leftOffset = 75;
 		
@@ -332,20 +326,6 @@ public class SpotifyHudElement extends ResizeableHudElement {
 		this.mediaController.setHeight(bottomOffset - topOffset);
 		this.mediaController.render(renderer, context, mouseX, mouseY, status);
 		/////////////////////////////////////////////////////////////////////
-	}
-	
-	@Override
-	public void postRender(RenderContext context, double mouseX, double mouseY) {
-		if(this.trackThumbnailTexture.getPixels() == null || !this.isAvailable()) return;
-		
-		//draw track thumbnail
-		final PoseStack matrixStack = context.pose();
-		final GuiGraphics graphics = context.graphics();
-		
-		//matrixStack.pushPose();
-		//matrixStack.translate(0, 0, -250);
-		graphics.blit(this.trackThumbnailResourceLocation, 5, 5, 0, 0, 65, 65, 65, 65);
-		//matrixStack.popPose();
 	}
 	
 	// clicking on the buttons while in chat
@@ -441,11 +421,37 @@ public class SpotifyHudElement extends ResizeableHudElement {
 	}
 	
 	private boolean isConnected() {
-		return this.plugin.getAPI().isConnected();
+		return this.plugin.getAPI() != null && this.plugin.getAPI().isConnected();
 	}
 	
 	private boolean isAvailable() {
 		return this.isConnected() && this.plugin.getAPI().isPlaybackAvailable();
+	}
+	
+	private NativeImage readNativeImage(byte[] bytes) throws IOException {
+		MemoryStack memoryStack = MemoryStack.stackGet();
+		int i = memoryStack.getPointer();
+		if (i < bytes.length) {
+			ByteBuffer byteBuffer = MemoryUtil.memAlloc(bytes.length);
+			
+			NativeImage nativeImage;
+			try {
+				byteBuffer.put(bytes);
+				byteBuffer.rewind();
+				nativeImage = NativeImage.read(byteBuffer);
+			} finally {
+				MemoryUtil.memFree(byteBuffer);
+			}
+			
+			return nativeImage;
+		} else {
+			try(MemoryStack memoryStack2 = MemoryStack.stackPush()) {
+				ByteBuffer byteBuffer2 = memoryStack2.malloc(bytes.length);
+				byteBuffer2.put(bytes);
+				byteBuffer2.rewind();
+				return NativeImage.read(byteBuffer2);
+			}
+		}
 	}
 	
 	abstract class ElementHandler extends ScaledElementBase implements IClickable {
@@ -636,14 +642,18 @@ public class SpotifyHudElement extends ResizeableHudElement {
 			
 			//progress bar
 			final double progressBarHeight = PROGRESS_BAR_HEIGHT;
-			final double progress = (double) status.progress_ms / (double) song.duration_ms;
+			
+			final long progress_ms = status.progress_ms + (status.is_playing ? plugin.getAPI().getMsSinceLastUpdate() : 0);
+			
+			final double progress = (double) progress_ms / (double) song.duration_ms;
+			
 			final boolean hoveredOverProgressBar = hovered && mouseY >= bottomOffset - progressBarHeight - 1;
 			renderer._drawRoundedRectangle(0, bottomOffset - progressBarHeight, width, progressBarHeight, 1, true, false, 0, Color.GRAY.getRGB(), 0);
 			renderer._drawRoundedRectangle(0, bottomOffset - progressBarHeight, width * (this.seeking ? seekingProgress : progress), progressBarHeight, 1, true, false, 0, hoveredOverProgressBar || this.seeking ? Color.GREEN.getRGB() : Color.WHITE.getRGB(), 0);
 			bottomOffset -= progressBarHeight + 1;
 			
 			//duration
-			final String current = String.format("%d:%02d", status.progress_ms / 60000, status.progress_ms / 1000 % 60);
+			final String current = String.format("%d:%02d", progress_ms / 60000, progress_ms / 1000 % 60);
 			final String length = String.format("%d:%02d", song.duration_ms / 60000, song.duration_ms / 1000 % 60);
 			final double durationHeight = fr.getFontHeight() + 1;
 			fr.drawString(current, 0, bottomOffset - durationHeight, Color.LIGHT_GRAY.getRGB());

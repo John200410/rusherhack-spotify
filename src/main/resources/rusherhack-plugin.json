@@ -1,8 +1,9 @@
 {
   "Plugin-Class": "me.john200410.spotify.SpotifyPlugin",
   "Name": "Spotify",
-  "Version": "${plugin_version}",
-  "Description": "Spotify integration for rusherhack",
+  "Version": "${project.plugin_version}",
+  "Description": "Spotify HUD element for rusherhack",
+  "URL": "https://github.com/John200410/rusherhack-spotify",
   "Authors": [
     "John200410",
     "DarkerInk"
@@ -15,6 +16,9 @@
     "1.20.5",
     "1.20.6",
     "1.21",
-    "1.21.1"
+    "1.21.1",
+    "1.21.2",
+    "1.21.3",
+    "1.21.4"
   ]
 }

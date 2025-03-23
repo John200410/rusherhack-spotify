@@ -21,7 +21,8 @@ import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.Future;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
 
 public class SpotifyAPI {
@@ -32,6 +33,7 @@ public class SpotifyAPI {
 	public static final HttpClient HTTP_CLIENT = HttpClient.newHttpClient();
 	private static final String API_URL = "https://api.spotify.com";
 	private static final String AUTH_URL = "https://accounts.spotify.com";
+	private static final ExecutorService EXECUTOR = Executors.newSingleThreadExecutor();
 	
 	/**
 	 * Variables
@@ -40,6 +42,7 @@ public class SpotifyAPI {
 	private boolean isConnected = false;
 	private boolean playbackAvailable = false;
 	private PlaybackState currentStatus;
+	private long lastUpdate = System.currentTimeMillis();
 	private final Timer statusUpdateTimer = new Timer();
 	
 	private final Timer refreshTokenTimer = new Timer();
@@ -68,8 +71,9 @@ public class SpotifyAPI {
 		this.submit(() -> {
 			try {
 				this.currentStatus = this.getStatus();
+				this.statusUpdateTimer.reset();
 			} catch(IOException | InterruptedException | JsonSyntaxException e) {
-				e.printStackTrace();
+				this.plugin.getLogger().error("Error updating status", e);
 			}
 		});
 		this.statusUpdateTimer.reset();
@@ -82,7 +86,7 @@ public class SpotifyAPI {
 			} catch(NoPremiumException e) {
 				RusherHackAPI.getNotificationManager().send(NotificationType.ERROR, "Spotify Premium is required for this function!");
 			} catch(IOException | InterruptedException e) {
-				e.printStackTrace();
+				this.plugin.getLogger().error("Error sending request", e);
 			}
 		});
 	}
@@ -94,7 +98,7 @@ public class SpotifyAPI {
 			} catch(NoPremiumException e) {
 				RusherHackAPI.getNotificationManager().send(NotificationType.ERROR, "Spotify Premium is required for this function!");
 			} catch(IOException | InterruptedException e) {
-				e.printStackTrace();
+				this.plugin.getLogger().error("Error sending request", e);
 			}
 		});
 	}
@@ -106,7 +110,7 @@ public class SpotifyAPI {
 			} catch(NoPremiumException e) {
 				RusherHackAPI.getNotificationManager().send(NotificationType.ERROR, "Spotify Premium is required for this function!");
 			} catch(IOException | InterruptedException e) {
-				e.printStackTrace();
+				this.plugin.getLogger().error("Error sending request", e);
 			}
 		});
 	}
@@ -118,7 +122,7 @@ public class SpotifyAPI {
 			} catch(NoPremiumException e) {
 				RusherHackAPI.getNotificationManager().send(NotificationType.ERROR, "Spotify Premium is required for this function!");
 			} catch(IOException | InterruptedException e) {
-				e.printStackTrace();
+				this.plugin.getLogger().error("Error sending request", e);
 			}
 		});
 	}
@@ -139,7 +143,7 @@ public class SpotifyAPI {
 			} catch(NoPremiumException e) {
 				RusherHackAPI.getNotificationManager().send(NotificationType.ERROR, "Spotify Premium is required for this function!");
 			} catch(IOException | InterruptedException e) {
-				e.printStackTrace();
+				this.plugin.getLogger().error("Error sending request", e);
 			}
 		});
 	}
@@ -151,7 +155,7 @@ public class SpotifyAPI {
 			} catch(NoPremiumException e) {
 				RusherHackAPI.getNotificationManager().send(NotificationType.ERROR, "Spotify Premium is required for this function!");
 			} catch(IOException | InterruptedException e) {
-				e.printStackTrace();
+				this.plugin.getLogger().error("Error sending request", e);
 			}
 		});
 	}
@@ -164,7 +168,7 @@ public class SpotifyAPI {
 				"GET",
 				this.getUrl("/v1/me/player", false)
 		);
-
+		
 		this.statusUpdateTimer.reset();
 		
 		switch(request.statusCode()) {
@@ -184,6 +188,8 @@ public class SpotifyAPI {
 				return null;
 			}
 		}
+		
+		this.lastUpdate = System.currentTimeMillis();
 		
 		final PlaybackState status = SpotifyPlugin.GSON.fromJson(request.body(), PlaybackState.class);
 		this.deviceID = status.device.id;
@@ -547,8 +553,8 @@ public class SpotifyAPI {
 		}
 	}
 	
-	public Future<?> submit(Runnable runnable) {
-		return Util.backgroundExecutor().submit(runnable);
+	public void submit(Runnable runnable) {
+		EXECUTOR.submit(runnable);
 	}
 	
 	private String getUrl(String url, Boolean Params) {
@@ -580,6 +586,10 @@ public class SpotifyAPI {
 	
 	public boolean isPlaybackAvailable() {
 		return this.playbackAvailable;
+	}
+	
+	public long getMsSinceLastUpdate() {
+		return System.currentTimeMillis() - this.lastUpdate;
 	}
 	
 }
