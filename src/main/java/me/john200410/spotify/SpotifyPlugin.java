@@ -138,7 +138,7 @@ public class SpotifyPlugin extends Plugin {
 						final String appId = queryParams.get("appId");
 						final String appSecret = queryParams.get("appSecret");
 						
-						String oauthUrl = this.api.setAppID(appId).setAppSecret(appSecret).setRedirectURI("http://localhost:4000/callback").generateOAuthUrl();
+						String oauthUrl = this.api.setAppID(appId).setAppSecret(appSecret).setRedirectURI("http://127.0.0.1:4000/callback").generateOAuthUrl();
 						
 						response = ("{\"url\": \"" + oauthUrl + "\"}").getBytes();
 						req.getResponseHeaders().add("Content-Type", "application/json");
